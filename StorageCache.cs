@@ -65,7 +65,9 @@ namespace NPCGarageHelper
                 {
                     try
                     {
-                        if (obj.GetIl2CppType().FullName != "CMS.Garage.Tools.RepairTable") continue;
+                        string fullName = obj.GetIl2CppType().FullName;
+                        if (fullName != "CMS.Garage.Tools.RepairTable" &&
+                            fullName != "Il2CppCMS.Garage.Tools.RepairTable") continue;
                         var rt = new Il2CppCMS.Garage.Tools.RepairTable(obj.Pointer);
                         if (rt.forBodyParts) continue;
                         HasRepairTable = true;
@@ -96,7 +98,9 @@ namespace NPCGarageHelper
                 {
                     try
                     {
-                        if (obj.GetIl2CppType().FullName != "CMS.Garage.Tools.UpgradeTable") continue;
+                        string fullName = obj.GetIl2CppType().FullName;
+                        if (fullName != "CMS.Garage.Tools.UpgradeTable" &&
+                            fullName != "Il2CppCMS.Garage.Tools.UpgradeTable") continue;
                         var ut = new Il2CppCMS.Garage.Tools.UpgradeTable(obj.Pointer);
                         UpgradeTable = ut;
                         AnchorPos = ut.transform.position;   // ← ANCHOR = UpgradeTable

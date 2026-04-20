@@ -117,8 +117,52 @@ namespace NPCGarageHelper
             _skillsPanel = new SkillsPanel();
             _skillsPanel.Build();
 
+            _skillsPanel.OnSkillUpgraded = OnSkillUpgraded;
+
+            // Wczytaj zapisany stan
+            ApplySave(NpcSaveData.Load());
+
             _panel.SetVisible(false);
         }
+
+
+        // ── Wczytywanie save ──────────────────────────────────────────────────
+        private void ApplySave(NpcSaveData.SavePayload save)
+        {
+            if (save == null) return;
+
+            _npcLevel = save.NpcLevel;
+            _npcXp = save.NpcXp;
+            _allocatedFunds = save.AllocatedFunds;
+
+            NpcSkillData.LoadFromSave(
+                save.SuccessLvl,
+                save.MaxRepairLvl,
+                save.MinRepairLvl,
+                save.AvailablePoints);
+
+            // Odśwież UI
+            _pbXp?.SetValue(_npcXp / 1000f);
+            _lblNpcLevel?.SetText($"NPC  LVL {_npcLevel}");
+            _lblXpValue?.SetText($"{_npcXp} / 1000 XP");
+            _lblFunds?.SetText($"Środki: {_allocatedFunds:F0} CR");
+            RefreshBadge();
+
+            Plugin.Log.Msg($"[WorkshopPanel] Save applied — lvl={_npcLevel} xp={_npcXp} funds={_allocatedFunds:F0}");
+        }
+
+        // ── Wywołania Save — trzy miejsca ─────────────────────────────────────
+
+        // 1. Po ukończeniu naprawy — na końcu TryTransferItem(), po bloku if(repairSuccess):
+        //    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
+        //    (dodaj jako ostatnią linię przed zamknięciem catch)
+
+        // 2. Po dodaniu funduszy — na końcu AllocateFunds():
+        //    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
+
+        // 3. Po ulepszeniu pasywa — w SkillsPanel przyciski już wywołują NpcSkillData.Upgrade*()
+        //    więc potrzebujemy callback. Dodaj do WorkshopPanel:
+        public void OnSkillUpgraded() => NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
 
         // ── Style ─────────────────────────────────────────────────────────────
         private void StylePanel()
@@ -232,6 +276,8 @@ namespace NPCGarageHelper
             _allocatedFunds += amount;
             _lblFunds.SetText($"Środki: {_allocatedFunds:F0} CR");
             RefreshBadge();
+
+            NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
         }
 
         private static void ShowPopup(string msg)
@@ -711,11 +757,15 @@ namespace NPCGarageHelper
                     _lblStats.SetText(
                         $"Naprawiono: {_totalRepaired}  |  wydano: {_totalRepaired * REPAIR_COST:F0} CR");
                     Plugin.Log.Msg($"[Workshop] ✓ {_currentItemName}  {condBefore:P0}→{condAfter:P0}");
+
+                    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
                 }
                 else
                 {
                     AddXp(40);
                     Plugin.Log.Msg($"[Workshop] ✗ FAIL {_currentItemName}  → zniszczony");
+
+                    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
                 }
             }
             catch (Exception ex) { Plugin.Log.Warning($"[Workshop] Transfer ERR: {ex.Message}"); }
@@ -777,7 +827,7 @@ namespace NPCGarageHelper
         // ── Helpers ───────────────────────────────────────────────────────────
         private string BuildSetupStatus()
         {
-            if (!StorageCache.HasRepairTable) return "❌ Brak RepairTable";
+            if (!StorageCache.HasAnchor) return "❌ Brak RepairTable";
             if (!StorageCache.HasAnchor) return "❌ Brak UpgradeTable (anchor) — kliknij Scan";
             if (StorageCache.InputStorage == null) return "❌ Brak INPUT storage — kliknij Scan";
             if (StorageCache.OutputStorage == null) return "❌ Brak OUTPUT storage (potrzeba 2 w zasięgu)";

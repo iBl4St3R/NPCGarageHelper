@@ -94,6 +94,19 @@ namespace NPCGarageHelper
             return true;
         }
 
+        public static void LoadFromSave(int[] successLvl, int[] maxRepairLvl, int[] minRepairLvl, int availablePoints)
+        {
+            AvailablePoints = availablePoints;
+            for (int i = 0; i < 6; i++)
+            {
+                _successLvl[i] = Math.Clamp(successLvl[i], 0, MAX_SUCCESS_LVL);
+                _maxRepairLvl[i] = Math.Clamp(maxRepairLvl[i], 0, MAX_MAX_REPAIR_LVL);
+                _minRepairLvl[i] = Math.Clamp(minRepairLvl[i], 0, MAX_MIN_REPAIR_LVL);
+            }
+            Plugin.Log.Msg($"[NpcSkillData] Loaded from save. Points={availablePoints}");
+        }
+
+
         // ──
         //
         // / level up ────────────────────────────────────────────────────

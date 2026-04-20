@@ -18,6 +18,8 @@ namespace NPCGarageHelper
         // ── UI refs ───────────────────────────────────────────────────────────
         private UILabelHandle _lblPoints;
 
+        public Action OnSkillUpgraded;
+
         // Per kategoria: 3 labele wartości + 3 przyciski
         private readonly UILabelHandle[] _lblSuccess = new UILabelHandle[6];
         private readonly UILabelHandle[] _lblMaxRepair = new UILabelHandle[6];
@@ -93,9 +95,7 @@ namespace NPCGarageHelper
                 lbl.SetFontSize(13);                     // było 11
                 _lblSuccess[idx] = row.AddLabel("--", 160f, new Color(0.80f, 0.80f, 0.90f, 1f));
                 _lblSuccess[idx].SetFontSize(13);        // było 11
-                _btnSuccess[idx] = row.AddButton("+ Upgrade", 140f,
-                    () => { NpcSkillData.UpgradeSuccess(cat); Refresh(); },
-                    ColDisabled);
+                _btnSuccess[idx] = row.AddButton("+ Upgrade", 140f, () => { NpcSkillData.UpgradeSuccess(cat); Refresh(); OnSkillUpgraded?.Invoke(); }, ColDisabled);
             }
 
             // Max repair
@@ -105,9 +105,7 @@ namespace NPCGarageHelper
                 lbl.SetFontSize(13);
                 _lblMaxRepair[idx] = row.AddLabel("--", 160f, new Color(0.80f, 0.80f, 0.90f, 1f));
                 _lblMaxRepair[idx].SetFontSize(13);
-                _btnMaxRepair[idx] = row.AddButton("+ Upgrade", 140f,
-                    () => { NpcSkillData.UpgradeMaxRepair(cat); Refresh(); },
-                    ColDisabled);
+                _btnMaxRepair[idx] = row.AddButton("+ Upgrade", 140f,() => { NpcSkillData.UpgradeMaxRepair(cat); Refresh(); OnSkillUpgraded?.Invoke(); },ColDisabled);
             }
 
             // Min repair
@@ -117,9 +115,7 @@ namespace NPCGarageHelper
                 lbl.SetFontSize(13);
                 _lblMinRepair[idx] = row.AddLabel("--", 160f, new Color(0.80f, 0.80f, 0.90f, 1f));
                 _lblMinRepair[idx].SetFontSize(13);
-                _btnMinRepair[idx] = row.AddButton("+ Upgrade", 140f,
-                    () => { NpcSkillData.UpgradeMinRepair(cat); Refresh(); },
-                    ColDisabled);
+                _btnMinRepair[idx] = row.AddButton("+ Upgrade", 140f,() => { NpcSkillData.UpgradeMinRepair(cat); Refresh(); OnSkillUpgraded?.Invoke(); },ColDisabled);
             }
 
             _panel.AddSeparator();
