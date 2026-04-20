@@ -28,7 +28,7 @@ The NPC automatically repairs parts from an input storage and moves them to an o
 | _CMS2026_UITK_Framework | 0.2.1+ |
 | CMS2026 Simple Console | 1.3.0+ (optional) |
 
----
+--- 
 
 ## Installation
 
