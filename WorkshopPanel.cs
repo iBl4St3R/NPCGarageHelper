@@ -204,13 +204,11 @@ namespace NPCGarageHelper
             var row = _panel.AddRow(34f, 5f);
 
             _btnSetupBadge = row.AddButton(
-                "⚙ SETUP", 100f,
+                " SETUP", 100f,
                 () => { _setupPanel?.Refresh(_allocatedFunds); _setupPanel?.Toggle(); },
                 BadgeColor());
 
-            row.AddButton("⚡ Skills", 95f,
-                () => _skillsPanel?.Toggle(),
-                new Color(0.15f, 0.15f, 0.35f, 1f));
+            row.AddButton(" Skills", 95f,() => { _skillsPanel?.Refresh(); _skillsPanel?.Toggle(); },new Color(0.15f, 0.15f, 0.35f, 1f));
 
             row.AddButton("✓ Zatrudnij", 130f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
             row.AddButton("✗ Zwolnij", 110f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
@@ -276,6 +274,9 @@ namespace NPCGarageHelper
             _transferOnlyTimer = 0f;
             _transferOnlyItem = null;
 
+            NpcSkillData.Reset();
+            if (_skillsPanel?.IsVisible == true)
+                _skillsPanel.Refresh();
 
             Plugin.Log.Msg("[WorkshopPanel] NPC zwolniony.");
 
@@ -522,12 +523,18 @@ namespace NPCGarageHelper
                     if (candidate == null) continue;
                     if (_repairedUIDs.Contains(candidate.UID)) continue;
 
-                    // Cast niemożliwy — rejestracja, assembly itp.
                     var item = candidate.TryCast<Il2CppCMS.Player.Containers.Item>();
                     if (item == null) return candidate;
-
-                    // IsJunk — zniszczony przez failed repair
                     if (item.IsJunk) return candidate;
+
+                    var cat = NpcSkillData.GetItemCategory(candidate);
+                    if (cat == null) return candidate;
+                    if (!NpcSkillData.IsUnlocked(cat.Value)) return candidate;
+
+                    // Kondycja >= maxRepair — NPC nie może poprawić, przenosi do OUTPUT
+                    float condVal = candidate.GetConditionToShow();
+                    float maxRepair = NpcSkillData.GetMaxRepair(cat.Value);
+                    if (condVal >= maxRepair) return candidate;
                 }
             }
             catch { }
@@ -540,23 +547,6 @@ namespace NPCGarageHelper
         {
             try
             {
-                var list = StorageCache.InputStorage.ItemsManager.GetItemsForRepairTable(false);
-                if (list != null)
-                    foreach (var candidate in list)
-                    {
-                        if (candidate == null) continue;
-
-                        var ci = candidate.TryCast<Il2CppCMS.Player.Containers.Item>();
-                        if (ci != null && ci.IsJunk) continue;
-
-                        if (_repairedUIDs.Contains(candidate.UID)) continue;
-                        if (candidate.GetConditionToShow() >= 0.99f) continue;
-                        return candidate;
-                    }
-            }
-            catch { }
-            try
-            {
                 var stacks = StorageCache.InputStorage.ItemsManager.Stacks;
                 for (int i = 0; i < stacks.Count; i++)
                 {
@@ -564,12 +554,22 @@ namespace NPCGarageHelper
                     if (s == null || s.Items.Count == 0) continue;
                     var candidate = s.Items[0];
                     if (candidate == null) continue;
+                    if (_repairedUIDs.Contains(candidate.UID)) continue;
 
                     var ci = candidate.TryCast<Il2CppCMS.Player.Containers.Item>();
-                    if (ci != null && ci.IsJunk) continue;
+                    if (ci == null) continue;
+                    if (ci.IsJunk) continue;
 
-                    if (_repairedUIDs.Contains(candidate.UID)) continue;
-                    if (candidate.GetConditionToShow() >= 0.99f) continue;
+                    var cat = NpcSkillData.GetItemCategory(candidate);
+                    if (cat == null || !NpcSkillData.IsUnlocked(cat.Value)) continue;
+
+                    float cond = candidate.GetConditionToShow();
+                    float maxRepair = NpcSkillData.GetMaxRepair(cat.Value);
+
+                    if (cond >= maxRepair) continue;  // NPC nie poprawi — pomijamy
+                    // już obsłużone przez maxRepair powyżej, ten check jest redundantny — można zostawić jako safety net
+                    //if (cond >= 0.99f) continue; // już idealna
+
                     return candidate;
                 }
             }
@@ -628,16 +628,19 @@ namespace NPCGarageHelper
             {
                 _npcXp -= 1000;
                 _npcLevel = Math.Min(_npcLevel + 1, 40);
-                Plugin.Log.Msg($"[Workshop] NPC Level UP → {_npcLevel}");
+                NpcSkillData.AddSkillPoint();              
+                if (_skillsPanel?.IsVisible == true)
+                    _skillsPanel.Refresh();                
+                Plugin.Log.Msg($"[Workshop] NPC Level UP → {_npcLevel}  pts={NpcSkillData.AvailablePoints}");
             }
 
-            float progress = _npcXp / 1000f;
-            _pbXp?.SetValue(progress);
+            _pbXp?.SetValue(_npcXp / 1000f);
             _lblNpcLevel?.SetText($"NPC  LVL {_npcLevel}");
             _lblXpValue?.SetText($"{_npcXp} / 1000 XP");
         }
 
-        private bool TryRepairItem(Il2CppCMS.Player.Containers.IBaseItem baseItem, out float condBefore, out float condAfter)
+        private bool TryRepairItem(Il2CppCMS.Player.Containers.IBaseItem baseItem,
+    out float condBefore, out float condAfter)
         {
             condBefore = baseItem.GetConditionToShow();
             condAfter = condBefore;
@@ -645,24 +648,28 @@ namespace NPCGarageHelper
             var item = baseItem.TryCast<Il2CppCMS.Player.Containers.Item>();
             if (item == null) return false;
 
-            float maxAttemptThreshold = 0.70f + ((_npcLevel - 1) / 39f) * 0.30f;
-            if (condBefore >= maxAttemptThreshold) { condAfter = condBefore; return true; }
+            var cat = NpcSkillData.GetItemCategory(baseItem);
+            if (cat == null || !NpcSkillData.IsUnlocked(cat.Value)) return false;
 
-            float difficulty = 1f - condBefore;
-            float baseChance = 0.50f + ((_npcLevel - 1) / 39f) * 0.45f;
-            float successChance = Mathf.Clamp(baseChance - difficulty * 0.30f, 0.05f, 0.95f);
+            float successChance = NpcSkillData.GetSuccessChance(cat.Value);
+            float maxRepair = NpcSkillData.GetMaxRepair(cat.Value);
+            float minRepair = NpcSkillData.GetMinRepair(cat.Value);
 
-            if ((float)_rng.NextDouble() < successChance)
+            // Rzut na sukces
+            if ((float)_rng.NextDouble() >= successChance)
             {
-                item.Condition = 255; item.Dent = 0;
+                item.Condition = 3;
+                item.Dent = 255;
                 condAfter = item.GetConditionToShow();
-                return true;
+                return false;
             }
 
-            item.Condition = 3;   // 1% (3/255)
-            item.Dent = 255; // → IsJunk = true, gra oznaczy jako nienaprawialny
+            // Naprawa do losowego % między min a max
+            float repairTarget = minRepair + (float)_rng.NextDouble() * (maxRepair - minRepair);
+            item.Condition = (byte)Mathf.Clamp(repairTarget * 255f, 1f, 255f);
+            item.Dent = 0;
             condAfter = item.GetConditionToShow();
-            return false;
+            return true;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
