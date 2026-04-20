@@ -443,9 +443,11 @@ namespace NPCGarageHelper
             _lblTitle?.SetColor(titleCol);
         }
 
-        // ── Logika naprawy ────────────────────────────────────────────────────
+        // ── Logika naprawy (Zaktualizowana wg sugestii Claude) ────────────────────────
         private void TickRepairLogic(float dt)
         {
+            // Ustalamy punkt bazowy: stół do naprawy ma pierwszeństwo nad anchorem
+            var repairPos = StorageCache.RepairTablePos ?? StorageCache.AnchorPos;
 
             // ── Transfer-only (item nienaprawialny — przenosimy z 1s opóźnieniem) ──
             if (_transferOnlyItem != null)
@@ -483,8 +485,9 @@ namespace NPCGarageHelper
                 _lblWork.SetText($"Naprawia: {_currentItemName}  ({_repairTimer:F0}s)");
 
                 if (StorageCache.IsValid() && StorageCache.UpgradeTable != null)
+                    // Używamy repairPos zamiast StorageCache.AnchorPos
                     _npc.PatrolTick(dt,
-                        StorageCache.AnchorPos,
+                        repairPos,
                         StorageCache.UpgradeTable.transform.position,
                         StorageCache.InputStorage.transform.position,
                         StorageCache.OutputStorage.transform.position);
@@ -500,13 +503,15 @@ namespace NPCGarageHelper
             }
 
             if (StorageCache.IsValid())
-                _npc.PatrolTick(dt, StorageCache.AnchorPos,
+                // Używamy repairPos zamiast StorageCache.AnchorPos
+                _npc.PatrolTick(dt,
+                    repairPos,
                     StorageCache.UpgradeTable.transform.position,
                     StorageCache.InputStorage.transform.position,
                     StorageCache.OutputStorage.transform.position);
 
 
-            // Sprawdź czy jest item który trzeba tylko przenieść (cast niemożliwy lub IsJunk)
+            // Sprawdź czy jest item który trzeba tylko przenieść
             var transferCandidate = FindTransferOnlyItem();
             if (transferCandidate != null)
             {
@@ -514,7 +519,6 @@ namespace NPCGarageHelper
                 _transferOnlyTimer = 1f;
                 return;
             }
-
 
             var nextItem = FindNextItem();
             if (nextItem == null)

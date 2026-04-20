@@ -25,6 +25,7 @@ namespace NPCGarageHelper
 
 
         public static Vector3? BodyRepairTablePos { get; private set; }
+        public static Vector3? RepairTablePos { get; private set; }
 
         private static List<(float dist, Il2CppCMS.Warehouse.WarehouseObject wo)> _lastScanResults = new();
 
@@ -45,6 +46,7 @@ namespace NPCGarageHelper
             LastScanTime = -999f;
             _lastScanResults.Clear();
             HasRepairTable = false;
+            RepairTablePos = null;
 
 
             BodyRepairTablePos = null;
@@ -67,6 +69,7 @@ namespace NPCGarageHelper
                         var rt = new Il2CppCMS.Garage.Tools.RepairTable(obj.Pointer);
                         if (rt.forBodyParts) continue;
                         HasRepairTable = true;
+                        RepairTablePos = rt.transform.position;
                         Plugin.Log.Msg($"[StorageCache] RepairTable @ {rt.transform.position}");
                         break;
                     }

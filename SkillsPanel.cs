@@ -58,7 +58,7 @@ namespace NPCGarageHelper
         {
             var ve = UIRuntime.WrapVE(_panel.GetPanelRawPtr());
             var st = UIRuntime.GetStyle(ve);
-            S.BgColor(st, new Color(0.04f, 0.05f, 0.10f, 0.99f)); // było 0.97f
+            S.BgColor(st, new Color(0.04f, 0.05f, 0.10f, 1.0f)); // było 0.97f
             S.BorderRadius(st, 14f);
             S.BorderColor(st, new Color(0.45f, 0.20f, 0.80f, 0.65f));
             S.BorderWidth(st, 1.5f);
