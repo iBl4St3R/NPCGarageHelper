@@ -20,6 +20,7 @@ namespace NPCGarageHelper
         private Il2CppCMS.Core.GameScript _gameScript;
         private bool _gsResolved;
 
+
         // ── Scene load ────────────────────────────────────────────────────────
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
         {
@@ -78,16 +79,9 @@ namespace NPCGarageHelper
             // ESC zamyka panel
             if (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.Escape))
             {
-                if (_panel != null && _panel.IsSetupVisible)
-                {
-                    _panel.CloseSetup();
-                    return;
-                }
-                if (_panel != null && _panel.IsVisible)
-                {
-                    _panel.Close();
-                    return;
-                }
+                if (_panel != null && _panel.IsSetupVisible) { _panel.CloseSetup(); return; }
+                if (_panel != null && _panel.IsSkillsVisible) { _panel.CloseSkills(); return; }
+                if (_panel != null && _panel.IsVisible) { _panel.Close(); return; }
             }
 
             // Interakcja przez E — tylko gdy panel zamknięty
@@ -151,7 +145,6 @@ namespace NPCGarageHelper
                 Plugin.Log.Warning($"[NGH] GameScript resolve: {ex.Message}");
             }
         }
-
 
 
 

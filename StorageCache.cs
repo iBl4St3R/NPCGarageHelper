@@ -31,6 +31,8 @@ namespace NPCGarageHelper
         
         public static List<(float dist, Il2CppCMS.Warehouse.WarehouseObject wo)> GetAllStoragesWithDistance() => _lastScanResults;
 
+        public static bool HasRepairTable { get; private set; }  // RepairTable znaleziony
+
         // ── Reset przy zmianie sceny ──────────────────────────────────────────
 
         public static void Reset()
@@ -42,6 +44,8 @@ namespace NPCGarageHelper
             BodyRepairTool1 = BodyRepairTool2 = null;
             LastScanTime = -999f;
             _lastScanResults.Clear();
+            HasRepairTable = false;
+
 
             BodyRepairTablePos = null;
         }
@@ -53,6 +57,8 @@ namespace NPCGarageHelper
             try
             {
                 var allMB = UnityEngine.Object.FindObjectsOfType<UnityEngine.MonoBehaviour>(true);
+
+                // Pętla 1 — RepairTable (parts) — wymagany do działania
                 foreach (var obj in allMB)
                 {
                     try
@@ -60,51 +66,48 @@ namespace NPCGarageHelper
                         if (obj.GetIl2CppType().FullName != "CMS.Garage.Tools.RepairTable") continue;
                         var rt = new Il2CppCMS.Garage.Tools.RepairTable(obj.Pointer);
                         if (rt.forBodyParts) continue;
-                        AnchorPos = rt.transform.position;
-                        HasAnchor = true;
-                        Plugin.Log.Msg($"[StorageCache] Anchor: RepairTable @ {AnchorPos}");
+                        HasRepairTable = true;
+                        Plugin.Log.Msg($"[StorageCache] RepairTable @ {rt.transform.position}");
                         break;
                     }
                     catch { }
                 }
 
-                // POPRAWNIE — osobna pętla po głównej:
+                // Pętla 2 — RepairTable (body) — tylko info
                 foreach (var obj in allMB)
                 {
                     try
                     {
                         if (obj.GetIl2CppType().FullName != "CMS.Garage.Tools.RepairTable") continue;
                         var rt = new Il2CppCMS.Garage.Tools.RepairTable(obj.Pointer);
-                        if (!rt.forBodyParts) continue;   // ← szukamy body
+                        if (!rt.forBodyParts) continue;
                         BodyRepairTablePos = rt.transform.position;
-                        Plugin.Log.Msg($"[StorageCache] BodyRepairTable(body) @ {BodyRepairTablePos}");
+                        Plugin.Log.Msg($"[StorageCache] BodyRepairTable @ {BodyRepairTablePos}");
                         break;
                     }
                     catch { }
                 }
 
-                // Znajdź UpgradeTable w tym samym przebiegu
+                // Pętla 3 — UpgradeTable — ANCHOR (pozycja bazowa dla storage scanu)
                 foreach (var obj in allMB)
                 {
                     try
                     {
                         if (obj.GetIl2CppType().FullName != "CMS.Garage.Tools.UpgradeTable") continue;
                         var ut = new Il2CppCMS.Garage.Tools.UpgradeTable(obj.Pointer);
-                        float d = UnityEngine.Vector3.Distance(AnchorPos, ut.transform.position);
-                        if (d <= SCAN_RADIUS)
-                        {
-                            UpgradeTable = ut;
-                            Plugin.Log.Msg($"[StorageCache] UpgradeTable @ {ut.transform.position}  dist={d:F1}m");
-                            break;
-                        }
+                        UpgradeTable = ut;
+                        AnchorPos = ut.transform.position;   // ← ANCHOR = UpgradeTable
+                        HasAnchor = true;
+                        Plugin.Log.Msg($"[StorageCache] Anchor=UpgradeTable @ {AnchorPos}");
+                        break;
                     }
                     catch { }
                 }
 
+                if (!HasRepairTable)
+                    Plugin.Log.Warning("[StorageCache] RepairTable not found.");
                 if (!HasAnchor)
-                    Plugin.Log.Warning("[StorageCache] RepairTable not found — using hardcoded fallback.");
-                if (UpgradeTable == null)
-                    Plugin.Log.Warning("[StorageCache] UpgradeTable not found within 10m.");
+                    Plugin.Log.Warning("[StorageCache] UpgradeTable not found — anchor missing.");
             }
             catch (Exception ex) { Plugin.Log.Warning($"[StorageCache] FindAnchor: {ex.Message}"); }
         }
@@ -140,13 +143,7 @@ namespace NPCGarageHelper
             candidates.Sort((a, b) => a.dist.CompareTo(b.dist));
             _lastScanResults = new List<(float, Il2CppCMS.Warehouse.WarehouseObject)>(candidates);
 
-            if (candidates.Count >= 2)
-            {
-                InputStorage = candidates[0].wo;
-                OutputStorage = candidates[1].wo;
-                Plugin.Log.Msg($"[StorageCache] IN={InputStorage.StorageName}  OUT={OutputStorage.StorageName}");
-                return ScanResult.OK;
-            }
+
             if (candidates.Count >= 2)
             {
                 InputStorage = candidates[0].wo;
@@ -158,8 +155,8 @@ namespace NPCGarageHelper
                 InputStorage = candidates[0].wo;
             }
 
-            FindBodyRepairTools();   
-            LastScanTime = UnityEngine.Time.time;  
+            FindBodyRepairTools();
+            LastScanTime = UnityEngine.Time.time;
 
             return candidates.Count >= 2 ? ScanResult.OK
                  : candidates.Count == 1 ? ScanResult.MissingOutput

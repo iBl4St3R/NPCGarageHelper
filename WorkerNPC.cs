@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Il2CppCMS.UI.Logic.Skills.Controls;
+using System;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -21,12 +22,25 @@ namespace NPCGarageHelper
         private MethodInfo _setFloat;
         private MethodInfo _setBool;
 
+
         // ── Public ────────────────────────────────────────────────────────────
         public bool IsAlive => _npcGO != null;
 
         // ── Spawn ─────────────────────────────────────────────────────────────
         public bool TrySpawn(Vector3 spawnPos)
         {
+            // Guard — jeśli NGH_WorkerNPC już istnieje w scenie, przejmiemy referencję
+            var existing = UnityEngine.GameObject.Find("NGH_WorkerNPC");
+            if (existing != null)
+            {
+                Plugin.Log.Warning("[WorkerNPC] NPC already exists — reclaiming reference");
+                _npcGO = existing;
+                SetupAnimator();
+                SetIdle();
+                return true;
+            }
+
+
             try
             {
                 var pcs = UnityEngine.Object.FindObjectsOfType<Il2CppCMS.Player.Controller.PlayerController > (true);

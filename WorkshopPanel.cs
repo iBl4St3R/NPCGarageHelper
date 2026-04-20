@@ -20,7 +20,6 @@ namespace NPCGarageHelper
 
         // ── Stan ──────────────────────────────────────────────────────────────
         private bool _npcHired;
-        private int _npcSkill;
         private float _repairTimer;
         private string _currentItemId = "";
         private string _currentItemName = "";
@@ -29,11 +28,15 @@ namespace NPCGarageHelper
         private bool _wasWorkTime;
         private float _allocatedFunds;
 
-        private readonly System.Collections.Generic.HashSet<ulong> _repairedUIDs
-            = new System.Collections.Generic.HashSet<ulong>();
+        private readonly System.Collections.Generic.HashSet<ulong> _repairedUIDs = new System.Collections.Generic.HashSet<ulong>();
 
         private readonly WorkerNPC _npc = new WorkerNPC();
         private static readonly System.Random _rng = new System.Random();
+
+        // ── Stan NPC — level/xp ───────────────────────────────────────────────────
+        private int _npcXp = 0;
+        private int _npcLevel = 1;
+
 
         // ── UI refs ───────────────────────────────────────────────────────────
         private UIPanel _panel;
@@ -47,6 +50,13 @@ namespace NPCGarageHelper
         private UIButtonHandle _btnSetupBadge;
 
         private SetupPanel _setupPanel;
+        // ── UI refs — level ───────────────────────────────────────────────────────
+        private UIProgressBarHandle _pbXp;
+        private UILabelHandle _lblNpcLevel;
+        private UILabelHandle _lblXpValue;
+
+        // ── Panele pomocnicze ─────────────────────────────────────────────────────
+        private SkillsPanel _skillsPanel;
 
         // ── Ticker ────────────────────────────────────────────────────────────
         private static readonly string[] TickFrames = { "●", "○" };
@@ -60,8 +70,12 @@ namespace NPCGarageHelper
         public void Close() { _isVisible = false; _panel?.SetVisible(false); }
         public void Toggle() { if (_isVisible) Close(); else Open(); }
 
+
         public bool IsSetupVisible => _setupPanel?.IsVisible ?? false;
         public void CloseSetup() => _setupPanel?.Close();
+        public bool IsSkillsVisible => _skillsPanel?.IsVisible ?? false;
+        public void CloseSkills() => _skillsPanel?.Close();
+
 
         // ── Build ─────────────────────────────────────────────────────────────
         public void Build()
@@ -83,12 +97,15 @@ namespace NPCGarageHelper
             AddStatusSection();
             AddWorkSection();
             AddFundsSection();
-            AddSkillSection();
+            AddLevelSection();
             AddStatsSection();
             AddControlButtons();
 
             _setupPanel = new SetupPanel();
             _setupPanel.Build();
+
+            _skillsPanel = new SkillsPanel();
+            _skillsPanel.Build();
 
             _panel.SetVisible(false);
         }
@@ -159,10 +176,14 @@ namespace NPCGarageHelper
             row.AddButton("+2000", 100f, () => AllocateFunds(2000f), new Color(0.08f, 0.26f, 0.12f, 1f));
         }
 
-        private void AddSkillSection()
+        private void AddLevelSection()
         {
-            _panel.AddSlider("Skill NPC (0-100):", 0f, 100f, _npcSkill,
-                v => { _npcSkill = (int)v; }, step: 1f);
+            var row = _panel.AddRow(24f, 4f);
+            _lblNpcLevel = row.AddLabel("NPC  LVL 1", 120f, new Color(0.4f, 0.8f, 1.0f, 1f));
+            _lblNpcLevel.SetFontSize(13);
+            _pbXp = row.AddProgressBar(70f, 0f, fillColor: new Color(0.3f, 0.6f, 1.0f, 1f));
+            _lblXpValue = row.AddLabel("0 / 1000 XP", 160f, new Color(0.45f, 0.55f, 0.70f, 1f));
+            _lblXpValue.SetFontSize(11);
             _panel.AddSeparator();
         }
 
@@ -180,13 +201,16 @@ namespace NPCGarageHelper
             var row = _panel.AddRow(34f, 5f);
 
             _btnSetupBadge = row.AddButton(
-                "⚙ SETUP", 110f,
+                "⚙ SETUP", 100f,
                 () => { _setupPanel?.Refresh(_allocatedFunds); _setupPanel?.Toggle(); },
                 BadgeColor());
 
-            row.AddButton("✓ Zatrudnij", 140f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
-            row.AddButton("✗ Zwolnij", 120f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
-            row.AddButton("⟳ Scan", 90f, OnScan, new Color(0.10f, 0.18f, 0.38f, 1f));
+            row.AddButton("⚡ Skills", 95f,
+                () => _skillsPanel?.Toggle(),
+                new Color(0.15f, 0.15f, 0.35f, 1f));
+
+            row.AddButton("✓ Zatrudnij", 130f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
+            row.AddButton("✗ Zwolnij", 110f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
         }
 
         // ── Przyciski ─────────────────────────────────────────────────────────
@@ -439,7 +463,7 @@ namespace NPCGarageHelper
             Plugin.Log.Msg($"[Workshop] Start: {_currentItemName}  t={_repairTimer:F0}s");
         }
 
-        private float RepairTime() => REPAIR_TIME_BASE * (1f - _npcSkill / 150f);
+        private float RepairTime() => REPAIR_TIME_BASE * (1f - (_npcLevel - 1) / 60f);
 
         private Il2CppCMS.Player.Containers.IBaseItem FindNextItem()
         {
@@ -502,14 +526,36 @@ namespace NPCGarageHelper
                 if (repairSuccess)
                 {
                     _repairedUIDs.Add(baseItem.UID);
+                    AddXp(20);
                     _lblStats.SetText(
                         $"Naprawiono: {_totalRepaired}  |  wydano: {_totalRepaired * REPAIR_COST:F0} CR");
                     Plugin.Log.Msg($"[Workshop] ✓ {_currentItemName}  {condBefore:P0}→{condAfter:P0}");
                 }
                 else
+                {
+                    AddXp(5);
                     Plugin.Log.Msg($"[Workshop] ✗ FAIL {_currentItemName}  → zniszczony");
+                }
             }
             catch (Exception ex) { Plugin.Log.Warning($"[Workshop] Transfer ERR: {ex.Message}"); }
+        }
+
+        private void AddXp(int amount)
+        {
+            if (_npcLevel >= 40) return;
+
+            _npcXp += amount;
+            if (_npcXp >= 1000)
+            {
+                _npcXp -= 1000;
+                _npcLevel = Math.Min(_npcLevel + 1, 40);
+                Plugin.Log.Msg($"[Workshop] NPC Level UP → {_npcLevel}");
+            }
+
+            float progress = _npcXp / 1000f;
+            _pbXp?.SetValue(progress);
+            _lblNpcLevel?.SetText($"NPC  LVL {_npcLevel}");
+            _lblXpValue?.SetText($"{_npcXp} / 1000 XP");
         }
 
         private bool TryRepairItem(Il2CppCMS.Player.Containers.IBaseItem baseItem,
@@ -521,11 +567,11 @@ namespace NPCGarageHelper
             var item = baseItem.TryCast<Il2CppCMS.Player.Containers.Item>();
             if (item == null) return false;
 
-            float maxAttemptThreshold = 0.70f + (_npcSkill / 100f) * 0.30f;
+            float maxAttemptThreshold = 0.70f + ((_npcLevel - 1) / 39f) * 0.30f;
             if (condBefore >= maxAttemptThreshold) { condAfter = condBefore; return true; }
 
             float difficulty = 1f - condBefore;
-            float baseChance = 0.50f + (_npcSkill / 100f) * 0.45f;
+            float baseChance = 0.50f + ((_npcLevel - 1) / 39f) * 0.45f;
             float successChance = Mathf.Clamp(baseChance - difficulty * 0.30f, 0.05f, 0.95f);
 
             if ((float)_rng.NextDouble() < successChance)
@@ -543,10 +589,10 @@ namespace NPCGarageHelper
         // ── Helpers ───────────────────────────────────────────────────────────
         private string BuildSetupStatus()
         {
-            if (!StorageCache.HasAnchor) return "❌ Brak RepairTable — kliknij Scan";
+            if (!StorageCache.HasRepairTable) return "❌ Brak RepairTable";
+            if (!StorageCache.HasAnchor) return "❌ Brak UpgradeTable (anchor) — kliknij Scan";
             if (StorageCache.InputStorage == null) return "❌ Brak INPUT storage — kliknij Scan";
             if (StorageCache.OutputStorage == null) return "❌ Brak OUTPUT storage (potrzeba 2 w zasięgu)";
-            if (StorageCache.UpgradeTable == null) return "⚠ Brak UpgradeTable w 10m — patrol ograniczony";
             if (_allocatedFunds < 1f) return "❌ Brak środków (dodaj fundusze)";
             return "✅ Gotowe do zatrudnienia";
         }
