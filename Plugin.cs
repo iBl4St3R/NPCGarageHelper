@@ -65,7 +65,13 @@ namespace NPCGarageHelper
                 {
                     var wm = Il2CppCMS.UI.WindowManager.Instance;
                     if (wm == null || wm.activeWindows.Count <= 0)
+                    {
                         Il2CppCMS.Core.GameMode.Get().SetCurrentMode(Il2Cpp.gameMode.Garage);
+
+                        // wymuś refresh raycastu żeby gra odświeżyła hover/outline
+                        _gameScript = null;
+                        _gsResolved = false;
+                    }
                 }
             }
             catch (Exception ex) { Log.Warning($"[NGH] OnCursorHide: {ex.Message}"); }

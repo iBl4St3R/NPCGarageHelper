@@ -190,7 +190,7 @@ namespace NPCGarageHelper
         private void AddStateSection()
         {
             _lblState = _panel.AddRow(28f, 4f)
-                .AddLabel("⏸ Oczekiwanie na zatrudnienie", 480f,
+                .AddLabel("Waiting for hire", 480f,
                     new Color(0.6f, 0.6f, 0.7f, 1f));
             _lblState.SetFontSize(14);
 
@@ -203,7 +203,7 @@ namespace NPCGarageHelper
         private void AddStatusSection()
         {
             _lblNpcStatus = _panel.AddRow(24f, 3f)
-                .AddLabel("● NPC: niezatrudniony", 480f, new Color(0.5f, 0.5f, 0.6f, 1f));
+                .AddLabel("● NPC: not hired", 480f, new Color(0.5f, 0.5f, 0.6f, 1f));
             _lblNpcStatus.SetFontSize(13);
 
             _lblInput = _panel.AddRow(22f, 2f).AddLabel("INPUT:  --", 480f, new Color(0.4f, 0.4f, 0.5f, 1f));
@@ -216,7 +216,7 @@ namespace NPCGarageHelper
         private void AddWorkSection()
         {
             _lblWork = _panel.AddRow(24f, 3f)
-                .AddLabel("Brak pracy", 480f, new Color(0.5f, 0.5f, 0.6f, 1f));
+                .AddLabel("No work", 480f, new Color(0.5f, 0.5f, 0.6f, 1f));
             _lblWork.SetFontSize(13);
             _panel.AddSeparator();
         }
@@ -224,7 +224,7 @@ namespace NPCGarageHelper
         private void AddFundsSection()
         {
             var row = _panel.AddRow(28f, 5f);
-            _lblFunds = row.AddLabel("Środki: 0 CR", 230f, new Color(1f, 0.8f, 0.2f, 1f));
+            _lblFunds = row.AddLabel("Funds: 0 CR", 230f, new Color(1f, 0.8f, 0.2f, 1f));
             _lblFunds.SetFontSize(13);
             row.AddButton("+500", 100f, () => AllocateFunds(500f), new Color(0.08f, 0.26f, 0.12f, 1f));
             row.AddButton("+2000", 100f, () => AllocateFunds(2000f), new Color(0.08f, 0.26f, 0.12f, 1f));
@@ -261,8 +261,8 @@ namespace NPCGarageHelper
 
             row.AddButton(" Skills", 95f,() => { _skillsPanel?.Refresh(); _skillsPanel?.Toggle(); },new Color(0.15f, 0.15f, 0.35f, 1f));
 
-            row.AddButton("✓ Zatrudnij", 130f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
-            row.AddButton("✗ Zwolnij", 110f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
+            row.AddButton("Hire", 130f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
+            row.AddButton("Fire", 110f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
         }
 
         // ── Przyciski ─────────────────────────────────────────────────────────
@@ -270,7 +270,7 @@ namespace NPCGarageHelper
         {
             if (!GameServices.SpendMoney(amount))
             {
-                _lblWork.SetText($"❌ Za mało CR ({GameServices.GetMoney():F0} / {amount:F0})");
+                _lblWork.SetText($" Not enough CR ({GameServices.GetMoney():F0} / {amount:F0})");
                 return;
             }
             _allocatedFunds += amount;
@@ -298,7 +298,7 @@ namespace NPCGarageHelper
             }
             if (GameServices.GetMoney() < DAILY_WAGE)
             {
-                _lblWork.SetText($"❌ Potrzeba {DAILY_WAGE:F0} CR na pierwszą wypłatę");
+                _lblWork.SetText($" Need {DAILY_WAGE:F0} CR for first wage");
                 return;
             }
 
@@ -306,9 +306,9 @@ namespace NPCGarageHelper
             _lastWageDay = GameServices.GetGameDay();
 
             _npcHired = true;
-            SetNpcStatusLabel("● NPC: zatrudniony (czeka na 8:00)", true);
+            SetNpcStatusLabel(" NPC: hired (waiting for 8:00)", true);
             RefreshBadge();
-            Plugin.Log.Msg("[WorkshopPanel] NPC zatrudniony!");
+            Plugin.Log.Msg("[WorkshopPanel] NPC hired!");
 
             // Spawn tylko jeśli w godzinach pracy
             float hour = GameServices.GetGameHour();
@@ -318,7 +318,7 @@ namespace NPCGarageHelper
                 var spawnPos = StorageCache.AnchorPos + new Vector3(1.5f, 0f, 0f);
                 if (!_npc.TrySpawn(spawnPos))
                 {
-                    _lblWork.SetText("❌ Spawn NPC failed — sprawdź logi");
+                    _lblWork.SetText(" Spawn NPC failed — check logs");
                     _npcHired = false;
                     return;
                 }
@@ -326,8 +326,8 @@ namespace NPCGarageHelper
             }
             else
             {
-                _lblWork.SetText(" NPC czeka na początek zmiany (8:00)");
-                SetStateLabel(" Czeka na 8:00", new Color(0.7f, 0.5f, 0.2f, 1f));
+                _lblWork.SetText(" NPC waiting for shift start (8:00)");
+                SetStateLabel(" Waiting for 8:00", new Color(0.7f, 0.5f, 0.2f, 1f));
                 _wasWorkTime = false;
             }
         }
@@ -341,9 +341,9 @@ namespace NPCGarageHelper
             _npc.ResetPatrol();
             _repairedUIDs.Clear();
             _npc.Despawn();
-            SetNpcStatusLabel("● NPC: niezatrudniony", false);
-            _lblWork.SetText("Brak pracy");
-            _lblState.SetText("⏸ Niezatrudniony");
+            SetNpcStatusLabel(" Not hired", false);
+            _lblWork.SetText("No job");
+            _lblState.SetText(" Not hired");
             _lblState.SetColor(new Color(0.5f, 0.5f, 0.6f, 1f));
             _pbRepair.SetValue(0f);
             _transferOnlyTimer = 0f;
@@ -353,7 +353,7 @@ namespace NPCGarageHelper
             if (_skillsPanel?.IsVisible == true)
                 _skillsPanel.Refresh();
 
-            Plugin.Log.Msg("[WorkshopPanel] NPC zwolniony.");
+            Plugin.Log.Msg("[WorkshopPanel] NPC fired.");
 
 
         }
@@ -406,12 +406,12 @@ namespace NPCGarageHelper
             {
                 if (!GameServices.SpendMoney(DAILY_WAGE))
                 {
-                    _lblWork.SetText("❌ Brak CR na wypłatę — NPC zwolniony");
+                    _lblWork.SetText(" Not enough CR for wage — NPC fired");
                     OnFire();
                     return;
                 }
                 _lastWageDay = today;
-                Plugin.Log.Msg($"[WorkshopPanel] Wypłata: {DAILY_WAGE} CR (dzień {today})");
+                Plugin.Log.Msg($"[WorkshopPanel] Wage paid: {DAILY_WAGE} CR (day {today})");
             }
 
             bool isWorkTime = hour >= WORK_START && hour < WORK_END;
@@ -428,7 +428,7 @@ namespace NPCGarageHelper
                     _npc.SetVisible(true);
 
                     // ── Notyfikacja: pracownik przychodzy ─────────────────────
-                    ShowPopup("<color=#60ff90> NPC przyszedł do pracy — zaczyna zmianę (8:00)</color>");
+                    ShowPopup("<color=#60ff90> NPC arrived — starting shift (8:00)</color>");
 
                     // Reset flag — nowa zmiana, notyfikacje mogą się pojawić ponownie
                     _notifOutputFull = false;
@@ -444,19 +444,19 @@ namespace NPCGarageHelper
                     _pbRepair.SetValue(0f);
 
                     // ── Notyfikacja: koniec zmiany ────────────────────────────
-                    ShowPopup("<color=#ffaa30> NPC skończył zmianę — wraca do domu (16:00)</color>");
+                    ShowPopup("<color=#ffaa30> NPC finished shift — going home (16:00)</color>");
                 }
             }
 
             if (!isWorkTime)
             {
-                SetNpcStatusLabel("● NPC: poza godzinami (8:00-16:00)", false);
-                _lblWork.SetText("NPC odpoczywa — model ukryty");
-                SetStateLabel(" Poza godzinami pracy", new Color(0.7f, 0.5f, 0.2f, 1f));
+                SetNpcStatusLabel("NPC: off hours (8:00-16:00)", false);
+                _lblWork.SetText("NPC resting — model hidden");
+                SetStateLabel(" Outside working hours", new Color(0.7f, 0.5f, 0.2f, 1f));
                 return;
             }
 
-            SetNpcStatusLabel("● NPC: pracuje", true);
+            SetNpcStatusLabel("NPC: working", true);
             TickRepairLogic(dt);
         }
 
@@ -524,8 +524,8 @@ namespace NPCGarageHelper
                 _outputFullTimer -= dt;
                 if (_outputFullTimer > 0f)
                 {
-                    SetStateLabel("📦 OUTPUT pełny — czeka…", new Color(0.9f, 0.5f, 0.1f, 1f));
-                    _lblWork.SetText($"OUTPUT pełny — sprawdzam za {_outputFullTimer:F0}s");
+                    SetStateLabel(" OUTPUT full — waiting…", new Color(0.9f, 0.5f, 0.1f, 1f));
+                    _lblWork.SetText($"OUTPUT full — checking in {_outputFullTimer:F0}s");
                     _npc.SetIdle();
                     return;
                 }
@@ -535,7 +535,7 @@ namespace NPCGarageHelper
                 if (!_notifOutputFull)
                 {
                     _notifOutputFull = true;
-                    ShowPopup("<color=#ff9030>📦 NPC: skrzynia OUTPUT jest pełna — praca wstrzymana</color>");
+                    ShowPopup("<color=#ff9030> NPC: OUTPUT storage is full — work paused</color>");
                 }
                 return;
             }
@@ -543,7 +543,7 @@ namespace NPCGarageHelper
             if (_notifOutputFull)
             {
                 _notifOutputFull = false;
-                ShowPopup("<color=#60ff90>📦 NPC: miejsce w OUTPUT — wznawianie pracy</color>");
+                ShowPopup("<color=#60ff90>📦 NPC: space in OUTPUT — resuming work</color>");
             }
             _outputFullTimer = 0f;
 
@@ -551,8 +551,8 @@ namespace NPCGarageHelper
             if (_transferOnlyItem != null)
             {
                 _transferOnlyTimer -= dt;
-                SetStateLabel("📦 Przenoszenie itemu…", new Color(0.6f, 0.6f, 0.3f, 1f));
-                _lblWork.SetText($"Przenoszenie: {_transferOnlyItem.GetLocalizedName()}  ({_transferOnlyTimer:F0}s)");
+                SetStateLabel(" Transferring item…", new Color(0.6f, 0.6f, 0.3f, 1f));
+                _lblWork.SetText($"Transferring: {_transferOnlyItem.GetLocalizedName()}  ({_transferOnlyTimer:F0}s)");
 
                 if (_transferOnlyTimer <= 0f)
                 {
@@ -562,7 +562,7 @@ namespace NPCGarageHelper
                         {
                             StorageCache.InputStorage.ItemsManager.Delete(_transferOnlyItem);
                             StorageCache.OutputStorage.ItemsManager.Add(_transferOnlyItem, false);
-                            Plugin.Log.Msg($"[Workshop] 📦 Przeniesiono (nienaprawialny): {_transferOnlyItem.GetLocalizedName()}");
+                            Plugin.Log.Msg($"[Workshop] Moved (unrepairable): {_transferOnlyItem.GetLocalizedName()}");
                         }
                     }
                     catch (Exception ex) { Plugin.Log.Warning($"[Workshop] Transfer-only ERR: {ex.Message}"); }
@@ -579,8 +579,8 @@ namespace NPCGarageHelper
                 float progress = 1f - Mathf.Clamp01(_repairTimer / repTime);
 
                 _pbRepair.SetValue(progress);
-                SetStateLabel($"🔧 Naprawia: {_currentItemName}", new Color(0.3f, 1f, 0.5f, 1f));
-                _lblWork.SetText($"Naprawia: {_currentItemName}  ({_repairTimer:F0}s)");
+                SetStateLabel($" Repairing: {_currentItemName}", new Color(0.3f, 1f, 0.5f, 1f));
+                _lblWork.SetText($"Repairing: {_currentItemName}  ({_repairTimer:F0}s)");
 
                 if (StorageCache.IsValid() && StorageCache.UpgradeTable != null)
                     // Używamy repairPos zamiast StorageCache.AnchorPos
@@ -596,7 +596,7 @@ namespace NPCGarageHelper
                 _currentItemId = "";
                 _currentItemName = "";
                 _pbRepair.SetValue(0f);
-                _lblWork.SetText("Szuka następnej części…");
+                _lblWork.SetText("Looking for next part…");
                 return;
             }
 
@@ -622,14 +622,14 @@ namespace NPCGarageHelper
             if (nextItem == null)
             {
                 _npc.SetIdle();
-                _lblWork.SetText("📭 Brak części w INPUT — czeka");
-                SetStateLabel("📭 Brak części — idle", new Color(0.5f, 0.5f, 0.6f, 1f));
+                _lblWork.SetText(" No parts in INPUT — waiting");
+                SetStateLabel(" No parts — idle", new Color(0.5f, 0.5f, 0.6f, 1f));
 
                 // ── Notyfikacja: input pusty — tylko raz per zmiana ──────────
                 if (!_notifInputEmpty)
                 {
                     _notifInputEmpty = true;
-                    ShowPopup("<color=#a0a0ff>📭 NPC: skrzynia INPUT jest pusta — czeka na części</color>");
+                    ShowPopup("<color=#a0a0ff>📭 NPC: INPUT storage is empty — waiting for parts</color>");
                 }
                 return;
             }
@@ -640,8 +640,8 @@ namespace NPCGarageHelper
             _currentItemName = nextItem.GetLocalizedName();
             _repairTimer = RepairTime();
 
-            _lblWork.SetText($"🔧 Naprawia: {_currentItemName}");
-            SetStateLabel($"🔧 Naprawia: {_currentItemName}", new Color(0.3f, 1f, 0.5f, 1f));
+            _lblWork.SetText($" Fixes: {_currentItemName}");
+            SetStateLabel($" Fixes:: {_currentItemName}", new Color(0.3f, 1f, 0.5f, 1f));
             Plugin.Log.Msg($"[Workshop] Start: {_currentItemName}  t={_repairTimer:F0}s");
         }
 
@@ -731,7 +731,7 @@ namespace NPCGarageHelper
                 {
                     if (baseItem != null)
                     {
-                        Plugin.Log.Msg($"[Workshop] OUTPUT pełny po naprawie — item {_currentItemName} czeka");
+                        Plugin.Log.Msg($"[Workshop] OUTPUT full after repair — item {_currentItemName} waiting");
                         // Cofnij timer naprawy żeby item nie zaginął — wróć do stanu idle
                         // Item zostaje w INPUT, zostanie przetworzony gdy miejsce się zwolni
                         _currentItemId = "";
@@ -748,14 +748,14 @@ namespace NPCGarageHelper
 
                 _totalRepaired++;
                 _allocatedFunds -= REPAIR_COST;
-                _lblFunds.SetText($"Środki: {_allocatedFunds:F0} CR");
+                _lblFunds.SetText($"Funds: {_allocatedFunds:F0} CR");
 
                 if (repairSuccess)
                 {
                     _repairedUIDs.Add(baseItem.UID);
                     AddXp(120);
                     _lblStats.SetText(
-                        $"Naprawiono: {_totalRepaired}  |  wydano: {_totalRepaired * REPAIR_COST:F0} CR");
+                        $"Repaired: {_totalRepaired}  |  spent: {_totalRepaired * REPAIR_COST:F0} CR");
                     Plugin.Log.Msg($"[Workshop] ✓ {_currentItemName}  {condBefore:P0}→{condAfter:P0}");
 
                     NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
@@ -763,7 +763,7 @@ namespace NPCGarageHelper
                 else
                 {
                     AddXp(40);
-                    Plugin.Log.Msg($"[Workshop] ✗ FAIL {_currentItemName}  → zniszczony");
+                    Plugin.Log.Msg($"[Workshop] ✗ FAIL {_currentItemName}  → destroyed");
 
                     NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
                 }
@@ -827,12 +827,12 @@ namespace NPCGarageHelper
         // ── Helpers ───────────────────────────────────────────────────────────
         private string BuildSetupStatus()
         {
-            if (!StorageCache.HasAnchor) return "❌ Brak RepairTable";
-            if (!StorageCache.HasAnchor) return "❌ Brak UpgradeTable (anchor) — kliknij Scan";
-            if (StorageCache.InputStorage == null) return "❌ Brak INPUT storage — kliknij Scan";
-            if (StorageCache.OutputStorage == null) return "❌ Brak OUTPUT storage (potrzeba 2 w zasięgu)";
-            if (_allocatedFunds < 1f) return "❌ Brak środków (dodaj fundusze)";
-            return "✅ Gotowe do zatrudnienia";
+            if (!StorageCache.HasAnchor) return "No RepairTable detected";
+            if (!StorageCache.HasAnchor) return "No UpgradeTable (anchor) detected";
+            if (StorageCache.InputStorage == null) return "❌ No INPUT storage detected";
+            if (StorageCache.OutputStorage == null) return "❌ No OUTPUT storage detected (need 2 in range)";
+            if (_allocatedFunds < 1f) return " No funds (add funds)";
+            return " Ready to hire";
         }
 
         private void RefreshStorageLabels()
