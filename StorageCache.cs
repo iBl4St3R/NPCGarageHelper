@@ -10,7 +10,6 @@ namespace NPCGarageHelper
     /// </summary>
     internal static class StorageCache
     {
-        // ── Stałe ─────────────────────────────────────────────────────────────
 
         // ── Stan ──────────────────────────────────────────────────────────────
         public static Il2CppCMS.Warehouse.WarehouseObject InputStorage { get; private set; }
@@ -20,6 +19,18 @@ namespace NPCGarageHelper
         public static Il2CppCMS.Garage.Tools.UpgradeTable UpgradeTable { get; private set; }
         private const float SCAN_RADIUS = 10f; // jeden promień dla wszystkiego
 
+        public static UnityEngine.Transform BodyRepairTool1 { get; private set; }
+        public static UnityEngine.Transform BodyRepairTool2 { get; private set; }
+        public static float LastScanTime { get; private set; } = -999f;  // Time.time
+
+
+        public static Vector3? BodyRepairTablePos { get; private set; }
+
+        private static List<(float dist, Il2CppCMS.Warehouse.WarehouseObject wo)> _lastScanResults = new();
+
+        
+        public static List<(float dist, Il2CppCMS.Warehouse.WarehouseObject wo)> GetAllStoragesWithDistance() => _lastScanResults;
+
         // ── Reset przy zmianie sceny ──────────────────────────────────────────
 
         public static void Reset()
@@ -28,6 +39,11 @@ namespace NPCGarageHelper
             UpgradeTable = null;
             HasAnchor = false;
             AnchorPos = new Vector3(-10.3f, 0f, 2.1f);
+            BodyRepairTool1 = BodyRepairTool2 = null;
+            LastScanTime = -999f;
+            _lastScanResults.Clear();
+
+            BodyRepairTablePos = null;
         }
 
 
@@ -47,6 +63,21 @@ namespace NPCGarageHelper
                         AnchorPos = rt.transform.position;
                         HasAnchor = true;
                         Plugin.Log.Msg($"[StorageCache] Anchor: RepairTable @ {AnchorPos}");
+                        break;
+                    }
+                    catch { }
+                }
+
+                // POPRAWNIE — osobna pętla po głównej:
+                foreach (var obj in allMB)
+                {
+                    try
+                    {
+                        if (obj.GetIl2CppType().FullName != "CMS.Garage.Tools.RepairTable") continue;
+                        var rt = new Il2CppCMS.Garage.Tools.RepairTable(obj.Pointer);
+                        if (!rt.forBodyParts) continue;   // ← szukamy body
+                        BodyRepairTablePos = rt.transform.position;
+                        Plugin.Log.Msg($"[StorageCache] BodyRepairTable(body) @ {BodyRepairTablePos}");
                         break;
                     }
                     catch { }
@@ -107,6 +138,7 @@ namespace NPCGarageHelper
             catch (Exception ex) { Plugin.Log.Warning($"[StorageCache] Scan: {ex.Message}"); }
 
             candidates.Sort((a, b) => a.dist.CompareTo(b.dist));
+            _lastScanResults = new List<(float, Il2CppCMS.Warehouse.WarehouseObject)>(candidates);
 
             if (candidates.Count >= 2)
             {
@@ -115,15 +147,57 @@ namespace NPCGarageHelper
                 Plugin.Log.Msg($"[StorageCache] IN={InputStorage.StorageName}  OUT={OutputStorage.StorageName}");
                 return ScanResult.OK;
             }
-            if (candidates.Count == 1)
+            if (candidates.Count >= 2)
             {
                 InputStorage = candidates[0].wo;
-                return ScanResult.MissingOutput;
+                OutputStorage = candidates[1].wo;
+                Plugin.Log.Msg($"[StorageCache] IN={InputStorage.StorageName}  OUT={OutputStorage.StorageName}");
             }
-            return ScanResult.NoStorages;
+            else if (candidates.Count == 1)
+            {
+                InputStorage = candidates[0].wo;
+            }
+
+            FindBodyRepairTools();   
+            LastScanTime = UnityEngine.Time.time;  
+
+            return candidates.Count >= 2 ? ScanResult.OK
+                 : candidates.Count == 1 ? ScanResult.MissingOutput
+                 : ScanResult.NoStorages;
         }
 
+        private static void FindBodyRepairTools()
+        {
+            BodyRepairTool1 = BodyRepairTool2 = null;
+            try
+            {
+                // Szukamy bezpośrednio po nazwie — taniej niż iteracja allMB
+                var go1 = UnityEngine.GameObject.Find("Body_Repair_Tool_1(Clone)");
+                var go2 = UnityEngine.GameObject.Find("Body_Repair_Tool_2(Clone)");
 
+                if (go1 != null)
+                {
+                    float d = Vector3.Distance(AnchorPos, go1.transform.position);
+                    if (d <= SCAN_RADIUS)
+                    {
+                        BodyRepairTool1 = go1.transform;
+                        Plugin.Log.Msg($"[StorageCache] BodyRepairTool1 @ {go1.transform.position}  dist={d:F1}m");
+                    }
+                    else Plugin.Log.Msg($"[StorageCache] BodyRepairTool1 znaleziony ale poza zasięgiem ({d:F1}m)");
+                }
+
+                if (go2 != null)
+                {
+                    float d = Vector3.Distance(AnchorPos, go2.transform.position);
+                    if (d <= SCAN_RADIUS)
+                    {
+                        BodyRepairTool2 = go2.transform;
+                        Plugin.Log.Msg($"[StorageCache] BodyRepairTool2 @ {go2.transform.position}  dist={d:F1}m");
+                    }
+                }
+            }
+            catch (Exception ex) { Plugin.Log.Warning($"[StorageCache] FindBodyRepairTools: {ex.Message}"); }
+        }
 
         // ── Szybka walidacja (bez FindObjects) ────────────────────────────────
         /// <summary>Sprawdza czy cached referencje wciąż żyją i są ok.</summary>

@@ -76,11 +76,18 @@ namespace NPCGarageHelper
             _panel?.Tick(UnityEngine.Time.deltaTime);
 
             // ESC zamyka panel
-            if (_panel != null && _panel.IsVisible
-                && UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.Escape))
+            if (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.Escape))
             {
-                _panel.Close();
-                return;
+                if (_panel != null && _panel.IsSetupVisible)
+                {
+                    _panel.CloseSetup();
+                    return;
+                }
+                if (_panel != null && _panel.IsVisible)
+                {
+                    _panel.Close();
+                    return;
+                }
             }
 
             // Interakcja przez E — tylko gdy panel zamknięty
