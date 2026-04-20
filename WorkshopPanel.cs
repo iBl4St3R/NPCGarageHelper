@@ -82,6 +82,10 @@ namespace NPCGarageHelper
         public bool IsSkillsVisible => _skillsPanel?.IsVisible ?? false;
         public void CloseSkills() => _skillsPanel?.Close();
 
+        // ── Notyfikacje popup ─────────────────────────────────────────────────
+        private bool _notifOutputFull = false;   // czy już pokazaliśmy "output pełny"
+        private bool _notifInputEmpty = false;   // czy już pokazaliśmy "input pusty"
+
 
         // ── Build ─────────────────────────────────────────────────────────────
         public void Build()
@@ -230,6 +234,14 @@ namespace NPCGarageHelper
             RefreshBadge();
         }
 
+        private static void ShowPopup(string msg)
+        {
+            try
+            {
+                Il2CppCMS.UI.UIManager.Get().ShowPopup(msg, Il2Cpp.PopupType.Normal);
+            }
+            catch (Exception ex) { Plugin.Log.Warning($"[NGH] ShowPopup: {ex.Message}"); }
+        }
         private void OnHire()
         {
             string status = BuildSetupStatus();
@@ -362,13 +374,19 @@ namespace NPCGarageHelper
                 _wasWorkTime = isWorkTime;
                 if (isWorkTime)
                 {
-                    // Początek zmiany — spawnuj jeśli NPC jeszcze nie istnieje
                     if (!_npc.IsAlive)
                     {
                         var spawnPos = StorageCache.AnchorPos + new Vector3(1.5f, 0f, 0f);
                         _npc.TrySpawn(spawnPos);
                     }
                     _npc.SetVisible(true);
+
+                    // ── Notyfikacja: pracownik przychodzy ─────────────────────
+                    ShowPopup("<color=#60ff90> NPC przyszedł do pracy — zaczyna zmianę (8:00)</color>");
+
+                    // Reset flag — nowa zmiana, notyfikacje mogą się pojawić ponownie
+                    _notifOutputFull = false;
+                    _notifInputEmpty = false;
                 }
                 else
                 {
@@ -378,6 +396,9 @@ namespace NPCGarageHelper
                     _currentItemName = "";
                     _repairTimer = 0f;
                     _pbRepair.SetValue(0f);
+
+                    // ── Notyfikacja: koniec zmiany ────────────────────────────
+                    ShowPopup("<color=#ffaa30> NPC skończył zmianę — wraca do domu (16:00)</color>");
                 }
             }
 
@@ -385,7 +406,7 @@ namespace NPCGarageHelper
             {
                 SetNpcStatusLabel("● NPC: poza godzinami (8:00-16:00)", false);
                 _lblWork.SetText("NPC odpoczywa — model ukryty");
-                SetStateLabel("😴 Poza godzinami pracy", new Color(0.7f, 0.5f, 0.2f, 1f));
+                SetStateLabel(" Poza godzinami pracy", new Color(0.7f, 0.5f, 0.2f, 1f));
                 return;
             }
 
@@ -462,11 +483,22 @@ namespace NPCGarageHelper
                     _npc.SetIdle();
                     return;
                 }
-                // Timer dobiegł — sprawdzimy ponownie w następnej klatce
                 _outputFullTimer = OUTPUT_FULL_CHECK_INTERVAL;
+
+                // ── Notyfikacja: output pełny — tylko raz per zmiana ─────────
+                if (!_notifOutputFull)
+                {
+                    _notifOutputFull = true;
+                    ShowPopup("<color=#ff9030>📦 NPC: skrzynia OUTPUT jest pełna — praca wstrzymana</color>");
+                }
                 return;
             }
-            // OUTPUT ma miejsce — resetuj timer
+            // OUTPUT ma miejsce — resetuj flagę i timer
+            if (_notifOutputFull)
+            {
+                _notifOutputFull = false;
+                ShowPopup("<color=#60ff90>📦 NPC: miejsce w OUTPUT — wznawianie pracy</color>");
+            }
             _outputFullTimer = 0f;
 
             // ── Transfer-only ──────────────────────────────────────────────────
@@ -546,8 +578,17 @@ namespace NPCGarageHelper
                 _npc.SetIdle();
                 _lblWork.SetText("📭 Brak części w INPUT — czeka");
                 SetStateLabel("📭 Brak części — idle", new Color(0.5f, 0.5f, 0.6f, 1f));
+
+                // ── Notyfikacja: input pusty — tylko raz per zmiana ──────────
+                if (!_notifInputEmpty)
+                {
+                    _notifInputEmpty = true;
+                    ShowPopup("<color=#a0a0ff>📭 NPC: skrzynia INPUT jest pusta — czeka na części</color>");
+                }
                 return;
             }
+            // Jest praca — resetuj flagę input empty
+            _notifInputEmpty = false;
 
             _currentItemId = nextItem.ID;
             _currentItemName = nextItem.GetLocalizedName();
