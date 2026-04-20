@@ -36,7 +36,7 @@ namespace NPCGarageHelper
         public const int MAX_MIN_REPAIR_LVL = 7;
 
         // ── Stan ──────────────────────────────────────────────────────────────
-        public static int AvailablePoints { get; private set; } = 6;
+        public static int AvailablePoints { get; private set; } = 10;
 
         private static readonly int[] _successLvl = new int[6];
         private static readonly int[] _maxRepairLvl = new int[6];
@@ -119,7 +119,7 @@ namespace NPCGarageHelper
         // ── Reset ─────────────────────────────────────────────────────────────
         public static void Reset()
         {
-            AvailablePoints = 6;
+            AvailablePoints = 10;
             for (int i = 0; i < 6; i++)
             {
                 _successLvl[i] = 0;

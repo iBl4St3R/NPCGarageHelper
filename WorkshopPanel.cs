@@ -194,7 +194,7 @@ namespace NPCGarageHelper
                     new Color(0.6f, 0.6f, 0.7f, 1f));
             _lblState.SetFontSize(14);
 
-            _pbRepair = _panel.AddProgressBar("Postęp naprawy:", 0f,
+            _pbRepair = _panel.AddProgressBar("Repair progress:", 0f,
                 fillColor: new Color(0.2f, 0.8f, 0.4f, 1f), height: 28f);
 
             _panel.AddSeparator();
@@ -244,7 +244,7 @@ namespace NPCGarageHelper
         private void AddStatsSection()
         {
             _lblStats = _panel.AddRow(22f, 3f)
-                .AddLabel("Naprawiono: 0  |  wydano: 0 CR", 480f,
+                .AddLabel("Fixed: 0  |  spent: 0 CR", 480f,
                     new Color(0.4f, 0.6f, 0.8f, 1f));
             _lblStats.SetFontSize(12);
             _panel.AddSeparator();
@@ -827,12 +827,12 @@ namespace NPCGarageHelper
         // ── Helpers ───────────────────────────────────────────────────────────
         private string BuildSetupStatus()
         {
-            if (!StorageCache.HasAnchor) return "No RepairTable detected";
-            if (!StorageCache.HasAnchor) return "No UpgradeTable (anchor) detected";
-            if (StorageCache.InputStorage == null) return "❌ No INPUT storage detected";
-            if (StorageCache.OutputStorage == null) return "❌ No OUTPUT storage detected (need 2 in range)";
-            if (_allocatedFunds < 1f) return " No funds (add funds)";
-            return " Ready to hire";
+            if (!StorageCache.HasRepairTable) return "❌ No RepairTable detected";
+            if (!StorageCache.HasAnchor) return "❌ No UpgradeTable (anchor) — click Scan";
+            if (StorageCache.InputStorage == null) return "❌ No INPUT storage — click Scan";
+            if (StorageCache.OutputStorage == null) return "❌ No OUTPUT storage (need 2 in range)";
+            if (_allocatedFunds < 1f) return "❌ No funds (add funds)";
+            return "✅ Ready to hire";
         }
 
         private void RefreshStorageLabels()

@@ -24,7 +24,7 @@ namespace NPCGarageHelper
             public int[] SuccessLvl = new int[6];
             public int[] MaxRepairLvl = new int[6];
             public int[] MinRepairLvl = new int[6];
-            public int AvailablePoints = 6;
+            public int AvailablePoints = 10;
         }
 
         // ── Zapis ─────────────────────────────────────────────────────────────
