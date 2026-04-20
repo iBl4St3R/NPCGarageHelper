@@ -666,14 +666,14 @@ namespace NPCGarageHelper
                 if (repairSuccess)
                 {
                     _repairedUIDs.Add(baseItem.UID);
-                    AddXp(20);
+                    AddXp(120);
                     _lblStats.SetText(
                         $"Naprawiono: {_totalRepaired}  |  wydano: {_totalRepaired * REPAIR_COST:F0} CR");
                     Plugin.Log.Msg($"[Workshop] ✓ {_currentItemName}  {condBefore:P0}→{condAfter:P0}");
                 }
                 else
                 {
-                    AddXp(5);
+                    AddXp(40);
                     Plugin.Log.Msg($"[Workshop] ✗ FAIL {_currentItemName}  → zniszczony");
                 }
             }
@@ -682,13 +682,13 @@ namespace NPCGarageHelper
 
         private void AddXp(int amount)
         {
-            if (_npcLevel >= 40) return;
+            if (_npcLevel >= 199) return;
 
             _npcXp += amount;
             if (_npcXp >= 1000)
             {
                 _npcXp -= 1000;
-                _npcLevel = Math.Min(_npcLevel + 1, 40);
+                _npcLevel = Math.Min(_npcLevel + 1, 199);
                 NpcSkillData.AddSkillPoint();              
                 if (_skillsPanel?.IsVisible == true)
                     _skillsPanel.Refresh();                
