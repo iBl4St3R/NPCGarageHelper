@@ -174,6 +174,32 @@ namespace NPCGarageHelper
                 });
 
                 register?.Invoke(null, new object[]
+{
+    "ngh_addxp",
+    "ngh_addxp <n> — dodaj XP do NPC",
+    (Action<string[]>)(args =>
+    {
+        if (args.Length < 1 || !int.TryParse(args[0], out int xp))
+        { Print("Użycie: ngh_addxp <n>"); return; }
+        _panel?.AddXpPublic(xp);
+        Print($"Dodano {xp} XP do NPC.");
+    })
+});
+
+                register?.Invoke(null, new object[]
+                {
+    "ngh_resetskills",
+    "Resetuje skille NPC i oddaje skill pointy",
+    (Action<string[]>)(_ =>
+    {
+        NpcSkillData.Reset();
+        _panel?.RefreshSkillsIfOpen();
+        Print($"Skille zresetowane. Dostępne punkty: {NpcSkillData.AvailablePoints}");
+    })
+                });
+
+
+                register?.Invoke(null, new object[]
                 {
                     "ngh_open",
                     "Toggle the NPC Garage Helper panel",

@@ -58,7 +58,7 @@ namespace NPCGarageHelper
         {
             var ve = UIRuntime.WrapVE(_panel.GetPanelRawPtr());
             var st = UIRuntime.GetStyle(ve);
-            S.BgColor(st, new Color(0.04f, 0.05f, 0.10f, 0.97f));
+            S.BgColor(st, new Color(0.04f, 0.05f, 0.10f, 0.99f)); // było 0.97f
             S.BorderRadius(st, 14f);
             S.BorderColor(st, new Color(0.45f, 0.20f, 0.80f, 0.65f));
             S.BorderWidth(st, 1.5f);
@@ -66,33 +66,33 @@ namespace NPCGarageHelper
 
         private void AddHeader()
         {
-            var title = _panel.AddRow(28f, 5f)
+            var title = _panel.AddRow(32f, 5f)          // było 28f
                 .AddLabel("⚡  SKILLS — NPC GARAGE HELPER", 580f,
                     new Color(0.65f, 0.40f, 1.00f, 1f));
-            title.SetFontSize(14);
+            title.SetFontSize(16);                       // było 14
 
-            _lblPoints = _panel.AddRow(22f, 3f)
+            _lblPoints = _panel.AddRow(24f, 3f)          // było 22f
                 .AddLabel("Skill points: 6", 580f, new Color(1f, 0.85f, 0.20f, 1f));
-            _lblPoints.SetFontSize(12);
+            _lblPoints.SetFontSize(14);                  // było 12
 
             _panel.AddSeparator();
         }
 
+        // AddCategorySection() — większe fonty wszędzie
         private void AddCategorySection(NpcSkillData.Category cat, int idx)
         {
-            // Nagłówek kategorii
-            var hdr = _panel.AddRow(24f, 4f)
+            var hdr = _panel.AddRow(28f, 4f)             // było 24f
                 .AddLabel(NpcSkillData.CategoryNames[idx], 580f,
                     new Color(0.55f, 0.85f, 1.00f, 1f));
-            hdr.SetFontSize(13);
+            hdr.SetFontSize(15);                         // było 13
 
             // Success chance
             {
-                var row = _panel.AddRow(22f, 2f);
+                var row = _panel.AddRow(26f, 2f);        // było 22f
                 var lbl = row.AddLabel("  Szansa naprawy:", 200f, new Color(0.55f, 0.55f, 0.65f, 1f));
-                lbl.SetFontSize(11);
+                lbl.SetFontSize(13);                     // było 11
                 _lblSuccess[idx] = row.AddLabel("--", 160f, new Color(0.80f, 0.80f, 0.90f, 1f));
-                _lblSuccess[idx].SetFontSize(11);
+                _lblSuccess[idx].SetFontSize(13);        // było 11
                 _btnSuccess[idx] = row.AddButton("+ Upgrade", 140f,
                     () => { NpcSkillData.UpgradeSuccess(cat); Refresh(); },
                     ColDisabled);
@@ -100,11 +100,11 @@ namespace NPCGarageHelper
 
             // Max repair
             {
-                var row = _panel.AddRow(22f, 2f);
+                var row = _panel.AddRow(26f, 2f);
                 var lbl = row.AddLabel("  Maks. naprawa:", 200f, new Color(0.55f, 0.55f, 0.65f, 1f));
-                lbl.SetFontSize(11);
+                lbl.SetFontSize(13);
                 _lblMaxRepair[idx] = row.AddLabel("--", 160f, new Color(0.80f, 0.80f, 0.90f, 1f));
-                _lblMaxRepair[idx].SetFontSize(11);
+                _lblMaxRepair[idx].SetFontSize(13);
                 _btnMaxRepair[idx] = row.AddButton("+ Upgrade", 140f,
                     () => { NpcSkillData.UpgradeMaxRepair(cat); Refresh(); },
                     ColDisabled);
@@ -112,11 +112,11 @@ namespace NPCGarageHelper
 
             // Min repair
             {
-                var row = _panel.AddRow(22f, 2f);
+                var row = _panel.AddRow(26f, 2f);
                 var lbl = row.AddLabel("  Min. naprawa:", 200f, new Color(0.55f, 0.55f, 0.65f, 1f));
-                lbl.SetFontSize(11);
+                lbl.SetFontSize(13);
                 _lblMinRepair[idx] = row.AddLabel("--", 160f, new Color(0.80f, 0.80f, 0.90f, 1f));
-                _lblMinRepair[idx].SetFontSize(11);
+                _lblMinRepair[idx].SetFontSize(13);
                 _btnMinRepair[idx] = row.AddButton("+ Upgrade", 140f,
                     () => { NpcSkillData.UpgradeMinRepair(cat); Refresh(); },
                     ColDisabled);

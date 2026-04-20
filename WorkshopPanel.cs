@@ -244,17 +244,31 @@ namespace NPCGarageHelper
             GameServices.SpendMoney(DAILY_WAGE);
             _lastWageDay = GameServices.GetGameDay();
 
-            var spawnPos = StorageCache.AnchorPos + new Vector3(1.5f, 0f, 0f);
-            if (!_npc.TrySpawn(spawnPos))
-            {
-                _lblWork.SetText("❌ Spawn NPC failed — sprawdź logi");
-                return;
-            }
-
             _npcHired = true;
-            SetNpcStatusLabel("● NPC: zatrudniony", true);
+            SetNpcStatusLabel("● NPC: zatrudniony (czeka na 8:00)", true);
             RefreshBadge();
             Plugin.Log.Msg("[WorkshopPanel] NPC zatrudniony!");
+
+            // Spawn tylko jeśli w godzinach pracy
+            float hour = GameServices.GetGameHour();
+            bool isWorkTime = hour >= WORK_START && hour < WORK_END;
+            if (isWorkTime)
+            {
+                var spawnPos = StorageCache.AnchorPos + new Vector3(1.5f, 0f, 0f);
+                if (!_npc.TrySpawn(spawnPos))
+                {
+                    _lblWork.SetText("❌ Spawn NPC failed — sprawdź logi");
+                    _npcHired = false;
+                    return;
+                }
+                _wasWorkTime = true;
+            }
+            else
+            {
+                _lblWork.SetText(" NPC czeka na początek zmiany (8:00)");
+                SetStateLabel(" Czeka na 8:00", new Color(0.7f, 0.5f, 0.2f, 1f));
+                _wasWorkTime = false;
+            }
         }
 
         private void OnFire()
@@ -343,9 +357,19 @@ namespace NPCGarageHelper
             if (isWorkTime != _wasWorkTime)
             {
                 _wasWorkTime = isWorkTime;
-                _npc.SetVisible(isWorkTime);
-                if (!isWorkTime)
+                if (isWorkTime)
                 {
+                    // Początek zmiany — spawnuj jeśli NPC jeszcze nie istnieje
+                    if (!_npc.IsAlive)
+                    {
+                        var spawnPos = StorageCache.AnchorPos + new Vector3(1.5f, 0f, 0f);
+                        _npc.TrySpawn(spawnPos);
+                    }
+                    _npc.SetVisible(true);
+                }
+                else
+                {
+                    _npc.SetVisible(false);
                     _npc.SetIdle();
                     _currentItemId = "";
                     _currentItemName = "";
@@ -731,5 +755,17 @@ namespace NPCGarageHelper
         {
             _btnSetupBadge?.SetBgColor(BadgeColor());
         }
+
+
+        public void AddXpPublic(int amount) => AddXp(amount);
+        public void RefreshSkillsIfOpen()
+        {
+            if (_skillsPanel?.IsVisible == true)
+                _skillsPanel.Refresh();
+        }
+
+
+
+
     }
 }
