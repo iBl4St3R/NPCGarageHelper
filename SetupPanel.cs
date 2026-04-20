@@ -15,22 +15,22 @@ namespace NPCGarageHelper
         private UIPanel _panel;
         private bool _isVisible;
 
-        // Sekcja 1 — Narzędzia
+        // Section 1 — Tools
         private UILabelHandle _lblRepairMain;
         private UILabelHandle _lblRepairBody;
         private UILabelHandle _lblUpgradeTable;
 
-        // Sekcja 2 — Storage (pre-allokowane wiersze)
+        // Section 2 — Storage (pre-allocated rows)
         private readonly UILabelHandle[] _lblStorages = new UILabelHandle[MAX_STORAGE_ROWS];
 
-        // Sekcja 3 — Status
+        // Section 3 — Status
         private UILabelHandle _lblStAnchor;
         private UILabelHandle _lblStUpgrade;
         private UILabelHandle _lblStInput;
         private UILabelHandle _lblStOutput;
         private UILabelHandle _lblStFunds;
 
-        // ── Widoczność ────────────────────────────────────────────────────────
+        // ── Visibility ────────────────────────────────────────────────────────
         public bool IsVisible => _isVisible;
         public void Open() { _isVisible = true; _panel?.SetVisible(true); }
         public void Close() { _isVisible = false; _panel?.SetVisible(false); }
@@ -71,7 +71,7 @@ namespace NPCGarageHelper
         private void AddTitleRow()
         {
             var lbl = _panel.AddRow(28f, 5f)
-                .AddLabel("⚙  SETUP — NPC GARAGE HELPER", 560f,
+                .AddLabel("SETUP — NPC GARAGE HELPER", 560f,
                     new Color(0.40f, 0.80f, 1.00f, 1f));
             lbl.SetFontSize(14);
 
@@ -82,28 +82,28 @@ namespace NPCGarageHelper
             _panel.AddSeparator();
         }
 
-        // ── Sekcja 1: Narzędzia ───────────────────────────────────────────────
+        // ── Section 1: Tools ───────────────────────────────────────────────
         private UILabelHandle _lblBodyTool1;
         private UILabelHandle _lblBodyTool2;
 
         private void BuildSection1_Tools()
         {
-            SectionHeader("NARZĘDZIA");
+            SectionHeader("TOOLS");
 
-            _lblRepairMain = MakeRow("  RepairTable (parts)       …");
-            _lblRepairBody = MakeRow("  RepairTable (body)        …");
-            _lblUpgradeTable = MakeRow("  UpgradeTable              …");
-            _lblBodyTool1 = MakeRow("  Body_Repair_Tool_1(Clone) …");
-            _lblBodyTool2 = MakeRow("  Body_Repair_Tool_2(Clone) …");
+            _lblRepairMain = MakeRow("  RepairTable (parts)       ...");
+            _lblRepairBody = MakeRow("  RepairTable (body)        ...");
+            _lblUpgradeTable = MakeRow("  UpgradeTable              ...");
+            _lblBodyTool1 = MakeRow("  Body_Repair_Tool_1(Clone) ...");
+            _lblBodyTool2 = MakeRow("  Body_Repair_Tool_2(Clone) ...");
 
             _panel.AddSeparator();
         }
 
 
-        // ── Sekcja 2: Storage w zasięgu ───────────────────────────────────────
+        // ── Section 2: Storage in range ───────────────────────────────────────
         private void BuildSection2_Storages()
         {
-            SectionHeader("STORAGE W ZASIĘGU  (10 m od RepairTable)");
+            SectionHeader("STORAGE IN RANGE (10 m from RepairTable)");
 
             for (int i = 0; i < MAX_STORAGE_ROWS; i++)
             {
@@ -114,23 +114,23 @@ namespace NPCGarageHelper
             _panel.AddSeparator();
         }
 
-        // ── Sekcja 3: Status systemu ──────────────────────────────────────────
+        // ── Section 3: System Status ──────────────────────────────────────────
         private void BuildSection3_Status()
         {
-            SectionHeader("STATUS SYSTEMU");
+            SectionHeader("SYSTEM STATUS");
 
-            _lblStAnchor = MakeRow("  … RepairTable anchor");
-            _lblStUpgrade = MakeRow("  … UpgradeTable w zasięgu");
-            _lblStInput = MakeRow("  … INPUT storage");
-            _lblStOutput = MakeRow("  … OUTPUT storage");
-            _lblStFunds = MakeRow("  … Środki gracza");
+            _lblStAnchor = MakeRow("  ... RepairTable anchor");
+            _lblStUpgrade = MakeRow("  ... UpgradeTable in range");
+            _lblStInput = MakeRow("  ... INPUT storage");
+            _lblStOutput = MakeRow("  ... OUTPUT storage");
+            _lblStFunds = MakeRow("  ... Player funds");
 
             _panel.AddSeparator();
         }
 
 
         // ── Refresh ───────────────────────────────────────────────────────────
-        /// <param name="allocatedFunds">Przekazane z WorkshopPanel — ile CR przeznaczono.</param>
+        /// <param name="allocatedFunds">Passed from WorkshopPanel — amount of CR allocated.</param>
         public void Refresh(float allocatedFunds)
         {
             RefreshLastScan();
@@ -144,7 +144,7 @@ namespace NPCGarageHelper
             float t = StorageCache.LastScanTime;
             if (t < 0f)
             {
-                _lblLastScan.SetText("Last scan: brak — uruchom grę w garażu");
+                _lblLastScan.SetText("Last scan: none — start the game in the garage");
                 _lblLastScan.SetColor(new Color(1f, 0.4f, 0.4f, 1f));
                 return;
             }
@@ -160,27 +160,27 @@ namespace NPCGarageHelper
                     ? new Color(1.0f, 0.70f, 0.20f, 1f)
                     : new Color(0.6f, 0.6f, 0.7f, 1f);
 
-            _lblLastScan.SetText($"Last scan: {agoStr}  (auto co 10s)");
+            _lblLastScan.SetText($"Last scan: {agoStr} (auto every 10s)");
             _lblLastScan.SetColor(col);
         }
 
-        // Overload bez parametru — tylko dla przycisku Rescan wewnątrz panelu
+        // Overload without parameter — only for Rescan button inside the panel
         private void RefreshInternal() => Refresh(GameServices.GetMoney());
 
-        // ── Sekcja 1 ──────────────────────────────────────────────────────────
+        // ── Section 1 ──────────────────────────────────────────────────────────
         private void RefreshTools()
         {
             if (StorageCache.HasAnchor)
             {
                 var p = StorageCache.AnchorPos;
                 Set(_lblRepairMain,
-                    $"  RepairTable (parts)   ✅  @ ({p.x:F2}, {p.y:F2}, {p.z:F2})",
+                    $"  RepairTable (parts)   OK  @ ({p.x:F2}, {p.y:F2}, {p.z:F2})",
                     ColorOK);
             }
             else
             {
                 Set(_lblRepairMain,
-                    "  RepairTable (parts)   ❌  nie wykryto",
+                    "  RepairTable (parts)   ERR  not detected",
                     ColorErr);
             }
 
@@ -189,13 +189,13 @@ namespace NPCGarageHelper
             {
                 var p = bodyPos.Value;
                 Set(_lblRepairBody,
-                    $"  RepairTable (body)    ✅  @ ({p.x:F2}, {p.y:F2}, {p.z:F2})  [nieużywany]",
+                    $"  RepairTable (body)     OK  @ ({p.x:F2}, {p.y:F2}, {p.z:F2})  [unused]",
                     ColorDim);
             }
             else
             {
                 Set(_lblRepairBody,
-                    "  RepairTable (body)    —  nie znaleziono",
+                    "  RepairTable (body)     —  not found",
                     ColorDim);
             }
 
@@ -204,13 +204,13 @@ namespace NPCGarageHelper
                 var p = StorageCache.UpgradeTable.transform.position;
                 float d = Vector3.Distance(StorageCache.AnchorPos, p);
                 Set(_lblUpgradeTable,
-                    $"  UpgradeTable          ✅  @ ({p.x:F2}, {p.y:F2}, {p.z:F2})  dist: {d:F1}m",
+                    $"  UpgradeTable           OK  @ ({p.x:F2}, {p.y:F2}, {p.z:F2})  dist: {d:F1}m",
                     ColorOK);
             }
             else
             {
                 Set(_lblUpgradeTable,
-                    "  UpgradeTable          ⚠   nie znaleziono w 10 m",
+                    "  UpgradeTable           WARN  not found within 10 m",
                     ColorWarn);
             }
 
@@ -221,26 +221,26 @@ namespace NPCGarageHelper
                 var p = StorageCache.BodyRepairTool1.position;
                 float d = Vector3.Distance(StorageCache.AnchorPos, p);
                 Set(_lblBodyTool1,
-                    $"  Body_Repair_Tool_1  ✅  @ ({p.x:F1}, {p.z:F1})  dist: {d:F1}m",
+                    $"  Body_Repair_Tool_1  OK  @ ({p.x:F1}, {p.z:F1})  dist: {d:F1}m",
                     ColorDim);
             }
             else
-                Set(_lblBodyTool1, "  Body_Repair_Tool_1  —  poza zasięgiem lub brak", ColorDim);
+                Set(_lblBodyTool1, "  Body_Repair_Tool_1  —  out of range or missing", ColorDim);
 
             if (StorageCache.BodyRepairTool2 != null)
             {
                 var p = StorageCache.BodyRepairTool2.position;
                 float d = Vector3.Distance(StorageCache.AnchorPos, p);
                 Set(_lblBodyTool2,
-                    $"  Body_Repair_Tool_2  ✅  @ ({p.x:F1}, {p.z:F1})  dist: {d:F1}m",
+                    $"  Body_Repair_Tool_2  OK  @ ({p.x:F1}, {p.z:F1})  dist: {d:F1}m",
                     ColorDim);
             }
             else
-                Set(_lblBodyTool2, "  Body_Repair_Tool_2  —  poza zasięgiem lub brak", ColorDim);
+                Set(_lblBodyTool2, "  Body_Repair_Tool_2  —  out of range or missing", ColorDim);
 
         }
 
-        // ── Sekcja 2 ──────────────────────────────────────────────────────────
+        // ── Section 2 ──────────────────────────────────────────────────────────
         private void RefreshStorages()
         {
             for (int i = 0; i < MAX_STORAGE_ROWS; i++)
@@ -251,7 +251,7 @@ namespace NPCGarageHelper
             if (all == null || all.Count == 0)
             {
                 Set(_lblStorages[0],
-                    "  Brak storage w zasięgu 10 m — umieść co najmniej 2",
+                    "  No storage in 10 m range — place at least 2",
                     ColorErr);
                 _lblStorages[0].SetVisible(true);
                 return;
@@ -270,7 +270,7 @@ namespace NPCGarageHelper
                 else if (wo == StorageCache.OutputStorage)
                     (tag, col) = ("← OUTPUT", ColorBlue);
                 else
-                    (tag, col) = ("  (ignorowany — za daleko)", ColorDim);
+                    (tag, col) = ("  (ignored — too far)", ColorDim);
 
                 int items = 0, max = 0;
                 try { items = wo.ItemsCount; max = wo.MaxCapacity; } catch { }
@@ -285,34 +285,34 @@ namespace NPCGarageHelper
             }
         }
 
-        // ── Sekcja 3 ──────────────────────────────────────────────────────────
+        // ── Section 3 ──────────────────────────────────────────────────────────
         private void RefreshStatus(float allocatedFunds)
         {
             StatusRow(_lblStAnchor,
                 StorageCache.HasAnchor,
                 "RepairTable anchor OK",
-                "Brak RepairTable — kliknij Rescan");
+                "RepairTable missing — click Rescan");
 
             StatusRow(_lblStUpgrade,
                 StorageCache.UpgradeTable != null,
-                "UpgradeTable w zasięgu",
-                "UpgradeTable poza zasięgiem — patrol ograniczony",
+                "UpgradeTable in range",
+                "UpgradeTable out of range — patrol limited",
                 warn: true);
 
             StatusRow(_lblStInput,
                 StorageCache.InputStorage != null,
-                "INPUT storage przypisany",
-                "Brak INPUT storage — kliknij Rescan");
+                "INPUT storage assigned",
+                "INPUT storage missing — click Rescan");
 
             StatusRow(_lblStOutput,
                 StorageCache.OutputStorage != null,
-                "OUTPUT storage przypisany",
-                "Brak OUTPUT storage  (potrzeba 2 w zasięgu)");
+                "OUTPUT storage assigned",
+                "OUTPUT storage missing (need 2 in range)");
 
             StatusRow(_lblStFunds,
                 allocatedFunds >= 1f,
-                $"Środki: {allocatedFunds:F0} CR  — OK",
-                "Brak środków — użyj +500 / +2000 w głównym panelu");
+                $"Funds: {allocatedFunds:F0} CR — OK",
+                "Insufficient funds — use +500 / +2000 in the main panel");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ namespace NPCGarageHelper
         private void SectionHeader(string text)
         {
             var lbl = _panel.AddRow(22f, 4f)
-                .AddLabel($"▸  {text}", 560f,
+                .AddLabel($"* {text}", 560f,
                     new Color(0.40f, 0.78f, 1.00f, 1f));
             lbl.SetFontSize(12);
         }
@@ -342,16 +342,16 @@ namespace NPCGarageHelper
             string okText, string failText, bool warn = false)
         {
             if (ok)
-                Set(lbl, $"  ✅  {okText}", ColorOK);
+                Set(lbl, $"  OK  {okText}", ColorOK);
             else if (warn)
-                Set(lbl, $"  ⚠   {failText}", ColorWarn);
+                Set(lbl, $"  WARN   {failText}", ColorWarn);
             else
-                Set(lbl, $"  ❌  {failText}", ColorErr);
+                Set(lbl, $"  ERR  {failText}", ColorErr);
         }
 
-       
 
-        // Kolory — stałe
+
+        // Colors — constants
         private static readonly Color ColorOK = new(0.20f, 0.90f, 0.40f, 1f);
         private static readonly Color ColorWarn = new(1.00f, 0.70f, 0.20f, 1f);
         private static readonly Color ColorErr = new(1.00f, 0.30f, 0.30f, 1f);

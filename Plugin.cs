@@ -27,11 +27,11 @@ namespace NPCGarageHelper
             if (!sceneName.ToLower().Contains("garage")) return;
             if (!FrameworkAPI.IsReady) return;
 
-            // Reset cached singletons przy każdym załadowaniu sceny
+            // Reset cached singletons on every scene load
             GameServices.Reset();
             StorageCache.Reset();
 
-            // Cursor hooks — unsubscribe first, żeby nie duplikować
+            // Cursor hooks — unsubscribe first to avoid duplication
             CursorManager.OnCursorShow -= OnCursorShow;
             CursorManager.OnCursorHide -= OnCursorHide;
             CursorManager.OnCursorShow += OnCursorShow;
@@ -68,7 +68,7 @@ namespace NPCGarageHelper
                     {
                         Il2CppCMS.Core.GameMode.Get().SetCurrentMode(Il2Cpp.gameMode.Garage);
 
-                        // wymuś refresh raycastu żeby gra odświeżyła hover/outline
+                        // Force raycast refresh so the game updates hover/outline
                         _gameScript = null;
                         _gsResolved = false;
                     }
@@ -82,7 +82,7 @@ namespace NPCGarageHelper
         {
             _panel?.Tick(UnityEngine.Time.deltaTime);
 
-            // ESC zamyka panel
+            // ESC closes the panel
             if (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.Escape))
             {
                 if (_panel != null && _panel.IsSetupVisible) { _panel.CloseSetup(); return; }
@@ -90,7 +90,7 @@ namespace NPCGarageHelper
                 if (_panel != null && _panel.IsVisible) { _panel.Close(); return; }
             }
 
-            // Interakcja przez E — tylko gdy panel zamknięty
+            // Interaction via E — only when panel is closed
             if (_panel == null || _panel.IsVisible) return;
             if (!UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.E)) return;
 
@@ -105,18 +105,18 @@ namespace NPCGarageHelper
 
                 string hitName = t.gameObject.name;
 
-                // Trigger 1: klik E na NPC
+                // Trigger 1: click E on NPC
                 if (hitName == "NGH_WorkerNPC")
                 {
-                    Plugin.Log.Msg("[NGH] E na NPC → Toggle panel");
+                    Plugin.Log.Msg("[NGH] E on NPC → Toggle panel");
                     _panel.Toggle();
                     return;
                 }
 
-                // Trigger 2: klik E na UpgradeTable (hit trafia w "Logic" child)
+                // Trigger 2: click E on UpgradeTable (hit hits "Logic" child)
                 if (IsUpgradeTable(t))
                 {
-                    Plugin.Log.Msg("[NGH] E na UpgradeTable → Toggle panel");
+                    Plugin.Log.Msg("[NGH] E on UpgradeTable → Toggle panel");
                     _panel.Toggle();
                     return;
                 }
@@ -125,10 +125,10 @@ namespace NPCGarageHelper
         }
 
 
-        // Sprawdza czy transform lub któryś z jego rodziców to Upgrade_Table
+        // Checks if transform or any of its parents is Upgrade_Table
         private static bool IsUpgradeTable(UnityEngine.Transform t)
         {
-            for (int i = 0; i < 4; i++)   // max 4 poziomy w górę
+            for (int i = 0; i < 4; i++)   // max 4 levels up
             {
                 if (t == null) return false;
                 if (t.name.StartsWith("Upgrade_Table")) return true;
@@ -182,25 +182,25 @@ namespace NPCGarageHelper
                 register?.Invoke(null, new object[]
 {
     "ngh_addxp",
-    "ngh_addxp <n> — dodaj XP do NPC",
+    "ngh_addxp <n> — add XP to NPC",
     (Action<string[]>)(args =>
     {
         if (args.Length < 1 || !int.TryParse(args[0], out int xp))
-        { Print("Użycie: ngh_addxp <n>"); return; }
+        { Print("Usage: ngh_addxp <n>"); return; }
         _panel?.AddXpPublic(xp);
-        Print($"Dodano {xp} XP do NPC.");
+        Print($"Added {xp} XP to NPC.");
     })
 });
 
                 register?.Invoke(null, new object[]
                 {
     "ngh_resetskills",
-    "Resetuje skille NPC i oddaje skill pointy",
+    "Resets NPC skills and refunds skill points",
     (Action<string[]>)(_ =>
     {
         NpcSkillData.Reset();
         _panel?.RefreshSkillsIfOpen();
-        Print($"Skille zresetowane. Dostępne punkty: {NpcSkillData.AvailablePoints}");
+        Print($"Skills reset. Available points: {NpcSkillData.AvailablePoints}");
     })
                 });
 
