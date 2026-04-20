@@ -58,6 +58,9 @@ namespace NPCGarageHelper
         // ── Panele pomocnicze ─────────────────────────────────────────────────────
         private SkillsPanel _skillsPanel;
 
+        private float _transferOnlyTimer = 0f;
+        private Il2CppCMS.Player.Containers.IBaseItem _transferOnlyItem = null;
+
         // ── Ticker ────────────────────────────────────────────────────────────
         private static readonly string[] TickFrames = { "●", "○" };
         private int _tickIdx;
@@ -270,7 +273,13 @@ namespace NPCGarageHelper
             _lblState.SetText("⏸ Niezatrudniony");
             _lblState.SetColor(new Color(0.5f, 0.5f, 0.6f, 1f));
             _pbRepair.SetValue(0f);
+            _transferOnlyTimer = 0f;
+            _transferOnlyItem = null;
+
+
             Plugin.Log.Msg("[WorkshopPanel] NPC zwolniony.");
+
+
         }
 
         private void OnScan()
@@ -412,6 +421,32 @@ namespace NPCGarageHelper
         // ── Logika naprawy ────────────────────────────────────────────────────
         private void TickRepairLogic(float dt)
         {
+
+            // ── Transfer-only (item nienaprawialny — przenosimy z 1s opóźnieniem) ──
+            if (_transferOnlyItem != null)
+            {
+                _transferOnlyTimer -= dt;
+                SetStateLabel("📦 Przenoszenie itemu…", new Color(0.6f, 0.6f, 0.3f, 1f));
+                _lblWork.SetText($"Przenoszenie: {_transferOnlyItem.GetLocalizedName()}  ({_transferOnlyTimer:F0}s)");
+
+                if (_transferOnlyTimer <= 0f)
+                {
+                    try
+                    {
+                        if (StorageCache.OutputStorage.ItemsManager.CanAddItems())
+                        {
+                            StorageCache.InputStorage.ItemsManager.Delete(_transferOnlyItem);
+                            StorageCache.OutputStorage.ItemsManager.Add(_transferOnlyItem, false);
+                            Plugin.Log.Msg($"[Workshop] 📦 Przeniesiono (nienaprawialny): {_transferOnlyItem.GetLocalizedName()}");
+                        }
+                    }
+                    catch (Exception ex) { Plugin.Log.Warning($"[Workshop] Transfer-only ERR: {ex.Message}"); }
+                    _transferOnlyItem = null;
+                    _transferOnlyTimer = 0f;
+                }
+                return;
+            }
+
             if (!string.IsNullOrEmpty(_currentItemId))
             {
                 _repairTimer -= dt;
@@ -445,6 +480,17 @@ namespace NPCGarageHelper
                     StorageCache.InputStorage.transform.position,
                     StorageCache.OutputStorage.transform.position);
 
+
+            // Sprawdź czy jest item który trzeba tylko przenieść (cast niemożliwy lub IsJunk)
+            var transferCandidate = FindTransferOnlyItem();
+            if (transferCandidate != null)
+            {
+                _transferOnlyItem = transferCandidate;
+                _transferOnlyTimer = 1f;
+                return;
+            }
+
+
             var nextItem = FindNextItem();
             if (nextItem == null)
             {
@@ -463,6 +509,31 @@ namespace NPCGarageHelper
             Plugin.Log.Msg($"[Workshop] Start: {_currentItemName}  t={_repairTimer:F0}s");
         }
 
+        private Il2CppCMS.Player.Containers.IBaseItem FindTransferOnlyItem()
+        {
+            try
+            {
+                var stacks = StorageCache.InputStorage.ItemsManager.Stacks;
+                for (int i = 0; i < stacks.Count; i++)
+                {
+                    var s = stacks[i];
+                    if (s == null || s.Items.Count == 0) continue;
+                    var candidate = s.Items[0];
+                    if (candidate == null) continue;
+                    if (_repairedUIDs.Contains(candidate.UID)) continue;
+
+                    // Cast niemożliwy — rejestracja, assembly itp.
+                    var item = candidate.TryCast<Il2CppCMS.Player.Containers.Item>();
+                    if (item == null) return candidate;
+
+                    // IsJunk — zniszczony przez failed repair
+                    if (item.IsJunk) return candidate;
+                }
+            }
+            catch { }
+            return null;
+        }
+
         private float RepairTime() => REPAIR_TIME_BASE * (1f - (_npcLevel - 1) / 60f);
 
         private Il2CppCMS.Player.Containers.IBaseItem FindNextItem()
@@ -474,6 +545,10 @@ namespace NPCGarageHelper
                     foreach (var candidate in list)
                     {
                         if (candidate == null) continue;
+
+                        var ci = candidate.TryCast<Il2CppCMS.Player.Containers.Item>();
+                        if (ci != null && ci.IsJunk) continue;
+
                         if (_repairedUIDs.Contains(candidate.UID)) continue;
                         if (candidate.GetConditionToShow() >= 0.99f) continue;
                         return candidate;
@@ -489,6 +564,10 @@ namespace NPCGarageHelper
                     if (s == null || s.Items.Count == 0) continue;
                     var candidate = s.Items[0];
                     if (candidate == null) continue;
+
+                    var ci = candidate.TryCast<Il2CppCMS.Player.Containers.Item>();
+                    if (ci != null && ci.IsJunk) continue;
+
                     if (_repairedUIDs.Contains(candidate.UID)) continue;
                     if (candidate.GetConditionToShow() >= 0.99f) continue;
                     return candidate;
@@ -558,8 +637,7 @@ namespace NPCGarageHelper
             _lblXpValue?.SetText($"{_npcXp} / 1000 XP");
         }
 
-        private bool TryRepairItem(Il2CppCMS.Player.Containers.IBaseItem baseItem,
-            out float condBefore, out float condAfter)
+        private bool TryRepairItem(Il2CppCMS.Player.Containers.IBaseItem baseItem, out float condBefore, out float condAfter)
         {
             condBefore = baseItem.GetConditionToShow();
             condAfter = condBefore;
@@ -581,8 +659,9 @@ namespace NPCGarageHelper
                 return true;
             }
 
-            item.Condition = 0; item.Dent = 255;
-            condAfter = 0f;
+            item.Condition = 3;   // 1% (3/255)
+            item.Dent = 255; // → IsJunk = true, gra oznaczy jako nienaprawialny
+            condAfter = item.GetConditionToShow();
             return false;
         }
 
