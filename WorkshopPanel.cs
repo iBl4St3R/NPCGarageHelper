@@ -28,6 +28,9 @@ namespace NPCGarageHelper
         private bool _wasWorkTime;
         private float _allocatedFunds;
 
+        private float _outputFullTimer = 0f;
+        private const float OUTPUT_FULL_CHECK_INTERVAL = 4f;
+
         private readonly System.Collections.Generic.HashSet<ulong> _repairedUIDs = new System.Collections.Generic.HashSet<ulong>();
 
         private readonly WorkerNPC _npc = new WorkerNPC();
@@ -446,10 +449,27 @@ namespace NPCGarageHelper
         // ── Logika naprawy (Zaktualizowana wg sugestii Claude) ────────────────────────
         private void TickRepairLogic(float dt)
         {
-            // Ustalamy punkt bazowy: stół do naprawy ma pierwszeństwo nad anchorem
             var repairPos = StorageCache.RepairTablePos ?? StorageCache.AnchorPos;
 
-            // ── Transfer-only (item nienaprawialny — przenosimy z 1s opóźnieniem) ──
+            // ── Guard: OUTPUT pełny — czekaj i sprawdzaj co 4s ────────────────
+            if (!StorageCache.OutputStorage.ItemsManager.CanAddItems())
+            {
+                _outputFullTimer -= dt;
+                if (_outputFullTimer > 0f)
+                {
+                    SetStateLabel("📦 OUTPUT pełny — czeka…", new Color(0.9f, 0.5f, 0.1f, 1f));
+                    _lblWork.SetText($"OUTPUT pełny — sprawdzam za {_outputFullTimer:F0}s");
+                    _npc.SetIdle();
+                    return;
+                }
+                // Timer dobiegł — sprawdzimy ponownie w następnej klatce
+                _outputFullTimer = OUTPUT_FULL_CHECK_INTERVAL;
+                return;
+            }
+            // OUTPUT ma miejsce — resetuj timer
+            _outputFullTimer = 0f;
+
+            // ── Transfer-only ──────────────────────────────────────────────────
             if (_transferOnlyItem != null)
             {
                 _transferOnlyTimer -= dt;
@@ -619,7 +639,20 @@ namespace NPCGarageHelper
                     if (s.Items.Count > 0) { baseItem = s.Items[0]; break; }
                 }
 
-                if (baseItem == null || !StorageCache.OutputStorage.ItemsManager.CanAddItems()) return;
+                // Guard: OUTPUT mógł się zapełnić w trakcie trwania naprawy
+                if (baseItem == null || !StorageCache.OutputStorage.ItemsManager.CanAddItems())
+                {
+                    if (baseItem != null)
+                    {
+                        Plugin.Log.Msg($"[Workshop] OUTPUT pełny po naprawie — item {_currentItemName} czeka");
+                        // Cofnij timer naprawy żeby item nie zaginął — wróć do stanu idle
+                        // Item zostaje w INPUT, zostanie przetworzony gdy miejsce się zwolni
+                        _currentItemId = "";
+                        _currentItemName = "";
+                        _outputFullTimer = OUTPUT_FULL_CHECK_INTERVAL;
+                    }
+                    return;
+                }
 
                 bool repairSuccess = TryRepairItem(baseItem, out float condBefore, out float condAfter);
 
