@@ -20,6 +20,8 @@ namespace NPCGarageHelper
             public int NpcXp = 0;
             public float AllocatedFunds = 0f;
 
+            public bool IsHired = false;
+
             // Pasywy per kategoria (6 kategorii × 3 wartości)
             public int[] SuccessLvl = new int[6];
             public int[] MaxRepairLvl = new int[6];
@@ -33,7 +35,7 @@ namespace NPCGarageHelper
         /// Guard blokuje ponowne wejście jeśli poprzedni save jeszcze trwa
         /// (np. dwa zdarzenia w tej samej klatce).
         /// </summary>
-        public static void Save(int npcLevel, int npcXp, float allocatedFunds)
+        public static void Save(int npcLevel, int npcXp, float allocatedFunds, bool isHired)
         {
             if (_saveInProgress)
             {
@@ -49,6 +51,7 @@ namespace NPCGarageHelper
                     NpcLevel = npcLevel,
                     NpcXp = npcXp,
                     AllocatedFunds = allocatedFunds,
+                    IsHired = isHired,
                     AvailablePoints = NpcSkillData.AvailablePoints,
                 };
 
@@ -119,6 +122,7 @@ namespace NPCGarageHelper
             sb.AppendLine($"  \"NpcXp\": {p.NpcXp},");
             sb.AppendLine($"  \"AllocatedFunds\": {p.AllocatedFunds.ToString(System.Globalization.CultureInfo.InvariantCulture)},");
             sb.AppendLine($"  \"AvailablePoints\": {p.AvailablePoints},");
+            sb.AppendLine($"  \"IsHired\": {(p.IsHired ? "true" : "false")},");
             sb.AppendLine($"  \"SuccessLvl\":   [{string.Join(", ", p.SuccessLvl)}],");
             sb.AppendLine($"  \"MaxRepairLvl\": [{string.Join(", ", p.MaxRepairLvl)}],");
             sb.AppendLine($"  \"MinRepairLvl\": [{string.Join(", ", p.MinRepairLvl)}]");
@@ -135,11 +139,30 @@ namespace NPCGarageHelper
             p.AllocatedFunds = ReadFloat(json, "AllocatedFunds", 0f);
             p.AvailablePoints = ReadInt(json, "AvailablePoints", 6);
             p.SuccessLvl = ReadIntArray(json, "SuccessLvl", 6);
+            p.IsHired = ReadBool(json, "IsHired", false);
             p.MaxRepairLvl = ReadIntArray(json, "MaxRepairLvl", 6);
             p.MinRepairLvl = ReadIntArray(json, "MinRepairLvl", 6);
 
             return p;
         }
+
+
+        private static bool ReadBool(string json, string key, bool fallback)
+        {
+            try
+            {
+                string pattern = $"\"{key}\":";
+                int idx = json.IndexOf(pattern, StringComparison.Ordinal);
+                if (idx < 0) return fallback;
+                int start = idx + pattern.Length;
+                while (start < json.Length && (json[start] == ' ' || json[start] == '\t')) start++;
+                if (json[start] == 't') return true;
+                if (json[start] == 'f') return false;
+                return fallback;
+            }
+            catch { return fallback; }
+        }
+
 
         // ── Parsery ───────────────────────────────────────────────────────────
         private static int ReadInt(string json, string key, int fallback)

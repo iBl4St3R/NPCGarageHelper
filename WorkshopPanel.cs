@@ -7,8 +7,6 @@ namespace NPCGarageHelper
     internal class WorkshopPanel
     {
         // ── Auto-scan ──────────────────────────────────────────────────────────
-        private float _autoScanTimer = 0f;
-        private const float AUTO_SCAN_INTERVAL = 10f;
 
         // ── Stałe ─────────────────────────────────────────────────────────────
         private const string PANEL_ID = "NGH_Workshop_Main";
@@ -68,6 +66,8 @@ namespace NPCGarageHelper
         private static readonly string[] TickFrames = { "●", "○" };
         private int _tickIdx;
         private float _tickTimer;
+
+        private ulong _currentItemUID = 0;
 
         // ── Widoczność ────────────────────────────────────────────────────────
         private bool _isVisible;
@@ -141,14 +141,44 @@ namespace NPCGarageHelper
                 save.MinRepairLvl,
                 save.AvailablePoints);
 
-            // Odśwież UI
             _pbXp?.SetValue(_npcXp / 1000f);
             _lblNpcLevel?.SetText($"NPC  LVL {_npcLevel}");
             _lblXpValue?.SetText($"{_npcXp} / 1000 XP");
             _lblFunds?.SetText($"Środki: {_allocatedFunds:F0} CR");
             RefreshBadge();
 
-            Plugin.Log.Msg($"[WorkshopPanel] Save applied — lvl={_npcLevel} xp={_npcXp} funds={_allocatedFunds:F0}");
+            // ── Auto-hire po załadowaniu ──────────────────────────────────────
+            if (save.IsHired)
+            {
+                string status = BuildSetupStatus();
+                if (status.StartsWith("✅"))
+                {
+                    _npcHired = true;
+                    _lastWageDay = GameServices.GetGameDay();   // nie pobieramy wypłaty wstecz
+                    SetNpcStatusLabel(" NPC: hired (waiting for shift)", true);
+                    RefreshBadge();
+
+                    float hour = GameServices.GetGameHour();
+                    bool isWorkTime = hour >= WORK_START && hour < WORK_END;
+                    if (isWorkTime)
+                    {
+                        var spawnPos = StorageCache.AnchorPos + new Vector3(1.5f, 0f, 0f);
+                        _npc.TrySpawn(spawnPos);
+                        _wasWorkTime = true;
+                    }
+                    else
+                    {
+                        _wasWorkTime = false;
+                    }
+
+                    Plugin.Log.Msg($"[WorkshopPanel] Auto-hired from save — workTime={isWorkTime}");
+                }
+                else
+                {
+                    // Setup się rozjechał (gracz przestawił skrzynie) — nie hirujemy, logujemy
+                    Plugin.Log.Warning($"[WorkshopPanel] Auto-hire skipped — setup invalid: {status}");
+                }
+            }
         }
 
         // ── Wywołania Save — trzy miejsca ─────────────────────────────────────
@@ -162,7 +192,7 @@ namespace NPCGarageHelper
 
         // 3. Po ulepszeniu pasywa — w SkillsPanel przyciski już wywołują NpcSkillData.Upgrade*()
         //    więc potrzebujemy callback. Dodaj do WorkshopPanel:
-        public void OnSkillUpgraded() => NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
+        public void OnSkillUpgraded() => NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds, _npcHired);
 
         // ── Style ─────────────────────────────────────────────────────────────
         private void StylePanel()
@@ -259,10 +289,13 @@ namespace NPCGarageHelper
                 () => { _setupPanel?.Refresh(_allocatedFunds); _setupPanel?.Toggle(); },
                 BadgeColor());
 
-            row.AddButton(" Skills", 95f,() => { _skillsPanel?.Refresh(); _skillsPanel?.Toggle(); },new Color(0.15f, 0.15f, 0.35f, 1f));
+            row.AddButton(" Skills", 95f, () => { _skillsPanel?.Refresh(); _skillsPanel?.Toggle(); }, new Color(0.15f, 0.15f, 0.35f, 1f));
 
-            row.AddButton("Hire", 130f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
-            row.AddButton("Fire", 110f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
+            // NOWY przycisk:
+            row.AddButton("Scan", 80f, OnScan, new Color(0.10f, 0.20f, 0.30f, 1f));
+
+            row.AddButton("Hire", 100f, OnHire, new Color(0.08f, 0.26f, 0.12f, 1f));
+            row.AddButton("Fire", 85f, OnFire, new Color(0.35f, 0.08f, 0.08f, 1f));
         }
 
         // ── Przyciski ─────────────────────────────────────────────────────────
@@ -277,7 +310,7 @@ namespace NPCGarageHelper
             _lblFunds.SetText($"Środki: {_allocatedFunds:F0} CR");
             RefreshBadge();
 
-            NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
+            NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds, _npcHired);
         }
 
         private static void ShowPopup(string msg)
@@ -349,6 +382,10 @@ namespace NPCGarageHelper
             _transferOnlyTimer = 0f;
             _transferOnlyItem = null;
 
+            _currentItemUID = 0;
+
+            NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds, false);
+
             NpcSkillData.Reset();
             if (_skillsPanel?.IsVisible == true)
                 _skillsPanel.Refresh();
@@ -381,17 +418,7 @@ namespace NPCGarageHelper
                 _lblTick.SetText(TickFrames[_tickIdx]);
             }
 
-            // Auto-scan co 10s
-            _autoScanTimer -= dt;
-            if (_autoScanTimer <= 0f)
-            {
-                _autoScanTimer = AUTO_SCAN_INTERVAL;
-                StorageCache.Scan();
-                RefreshBadge();
-                RefreshStorageLabels();
-                if (_setupPanel?.IsVisible == true)
-                    _setupPanel.Refresh(_allocatedFunds);
-            }
+            
 
             float hour = GameServices.GetGameHour();
             _lblHour.SetText($"{(int)hour:D2}:{(int)((hour % 1f) * 60):D2}");
@@ -636,7 +663,9 @@ namespace NPCGarageHelper
             // Jest praca — resetuj flagę input empty
             _notifInputEmpty = false;
 
+            // w TickRepairLogic przy starcie naprawy:
             _currentItemId = nextItem.ID;
+            _currentItemUID = nextItem.UID;      // ← dodaj tę linię
             _currentItemName = nextItem.GetLocalizedName();
             _repairTimer = RepairTime();
 
@@ -726,20 +755,26 @@ namespace NPCGarageHelper
                     if (s.Items.Count > 0) { baseItem = s.Items[0]; break; }
                 }
 
-                // Guard: OUTPUT mógł się zapełnić w trakcie trwania naprawy
-                if (baseItem == null || !StorageCache.OutputStorage.ItemsManager.CanAddItems())
+                // NOWY GUARD: item zniknął ze stacka (gracz zabrał) — abort
+                if (baseItem == null)
                 {
-                    if (baseItem != null)
-                    {
-                        Plugin.Log.Msg($"[Workshop] OUTPUT full after repair — item {_currentItemName} waiting");
-                        // Cofnij timer naprawy żeby item nie zaginął — wróć do stanu idle
-                        // Item zostaje w INPUT, zostanie przetworzony gdy miejsce się zwolni
-                        _currentItemId = "";
-                        _currentItemName = "";
-                        _outputFullTimer = OUTPUT_FULL_CHECK_INTERVAL;
-                    }
+                    Plugin.Log.Msg($"[Workshop] Item {_currentItemName} gone from INPUT — player took it, aborting transfer");
+                    _currentItemId = "";
+                    _currentItemName = "";
                     return;
                 }
+
+                // NOWY GUARD: sprawdź czy to ten sam konkretny obiekt po UID
+                // (gracz mógł zabrać i włożyć inny item tego samego typu)
+                // _currentItemUID musisz zapamiętać przy starcie naprawy
+                if (baseItem.UID != _currentItemUID)
+                {
+                    Plugin.Log.Msg($"[Workshop] UID mismatch — different item in slot, aborting");
+                    _currentItemId = "";
+                    _currentItemName = "";
+                    return;
+                }
+
 
                 bool repairSuccess = TryRepairItem(baseItem, out float condBefore, out float condAfter);
 
@@ -758,14 +793,14 @@ namespace NPCGarageHelper
                         $"Repaired: {_totalRepaired}  |  spent: {_totalRepaired * REPAIR_COST:F0} CR");
                     Plugin.Log.Msg($"[Workshop] ✓ {_currentItemName}  {condBefore:P0}→{condAfter:P0}");
 
-                    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
+                    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds, _npcHired);
                 }
                 else
                 {
                     AddXp(40);
                     Plugin.Log.Msg($"[Workshop] ✗ FAIL {_currentItemName}  → destroyed");
 
-                    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds);
+                    NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds, _npcHired);
                 }
             }
             catch (Exception ex) { Plugin.Log.Warning($"[Workshop] Transfer ERR: {ex.Message}"); }
