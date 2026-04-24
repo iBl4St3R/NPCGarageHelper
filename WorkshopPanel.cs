@@ -34,6 +34,11 @@ namespace NPCGarageHelper
         private readonly WorkerNPC _npc = new WorkerNPC();
         private static readonly System.Random _rng = new System.Random();
 
+
+        private NpcSaveData.SavePayload _pendingSave = null;
+        private float _pendingSaveDelay = 0f;
+        private const float AUTO_HIRE_DELAY = 5f; // sekundy po załadowaniu sceny
+
         // ── Stan NPC — level/xp ───────────────────────────────────────────────────
         private int _npcXp = 0;
         private int _npcLevel = 1;
@@ -119,8 +124,9 @@ namespace NPCGarageHelper
 
             _skillsPanel.OnSkillUpgraded = OnSkillUpgraded;
 
-            // Wczytaj zapisany stan
-            ApplySave(NpcSaveData.Load());
+            // Wczytaj save ale nie aplikuj od razu — scena jeszcze nie gotowa
+            _pendingSave = NpcSaveData.Load();
+            _pendingSaveDelay = AUTO_HIRE_DELAY;
 
             _panel.SetVisible(false);
         }
@@ -343,7 +349,6 @@ namespace NPCGarageHelper
             RefreshBadge();
             Plugin.Log.Msg("[WorkshopPanel] NPC hired!");
 
-            // Spawn tylko jeśli w godzinach pracy
             float hour = GameServices.GetGameHour();
             bool isWorkTime = hour >= WORK_START && hour < WORK_END;
             if (isWorkTime)
@@ -363,6 +368,9 @@ namespace NPCGarageHelper
                 SetStateLabel(" Waiting for 8:00", new Color(0.7f, 0.5f, 0.2f, 1f));
                 _wasWorkTime = false;
             }
+
+            // ← BRAKUJĄCY ZAPIS
+            NpcSaveData.Save(_npcLevel, _npcXp, _allocatedFunds, _npcHired);
         }
 
         private void OnFire()
@@ -409,6 +417,21 @@ namespace NPCGarageHelper
         {
             if (_panel == null) return;
 
+            // Opóźniony auto-hire po załadowaniu sceny
+            if (_pendingSave != null)
+            {
+                _pendingSaveDelay -= dt;
+                if (_pendingSaveDelay <= 0f)
+                {
+                    StorageCache.Scan();
+                    RefreshBadge();
+                    RefreshStorageLabels();
+                    ApplySave(_pendingSave);
+                    _pendingSave = null;
+                }
+                return; // czekaj — nie rób nic więcej
+            }
+
             // Ticker
             _tickTimer += dt;
             if (_tickTimer >= 0.5f)
@@ -417,8 +440,6 @@ namespace NPCGarageHelper
                 _tickIdx = 1 - _tickIdx;
                 _lblTick.SetText(TickFrames[_tickIdx]);
             }
-
-            
 
             float hour = GameServices.GetGameHour();
             _lblHour.SetText($"{(int)hour:D2}:{(int)((hour % 1f) * 60):D2}");
@@ -454,10 +475,8 @@ namespace NPCGarageHelper
                     }
                     _npc.SetVisible(true);
 
-                    // ── Notyfikacja: pracownik przychodzy ─────────────────────
                     ShowPopup("<color=#60ff90> NPC arrived — starting shift (8:00)</color>");
 
-                    // Reset flag — nowa zmiana, notyfikacje mogą się pojawić ponownie
                     _notifOutputFull = false;
                     _notifInputEmpty = false;
                 }
@@ -467,10 +486,10 @@ namespace NPCGarageHelper
                     _npc.SetIdle();
                     _currentItemId = "";
                     _currentItemName = "";
+                    _currentItemUID = 0;
                     _repairTimer = 0f;
                     _pbRepair.SetValue(0f);
 
-                    // ── Notyfikacja: koniec zmiany ────────────────────────────
                     ShowPopup("<color=#ffaa30> NPC finished shift — going home (16:00)</color>");
                 }
             }
