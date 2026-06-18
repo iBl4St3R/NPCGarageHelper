@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 
 [assembly: MelonInfo(typeof(NPCGarageHelper.Plugin),
-    "NPCGarageHelper", "0.1.0", "iBlaster")]
+    "NPCGarageHelper", "0.1.1", "iBlaster")]
 [assembly: MelonGame("Red Dot Games", "Car Mechanic Simulator 2026 Demo")]
 [assembly: MelonGame("Red Dot Games", "Car Mechanic Simulator 2026")]
 
